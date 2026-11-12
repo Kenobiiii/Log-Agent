@@ -61,8 +61,8 @@ The log path is injected by the agent and is never exposed to the model, so it c
 Requires Python 3.10+.
 
 ```bash
-git clone https://github.com/<your-user>/log-agent.git
-cd log-agent
+git clone https://github.com/Kenobiiii/Log-Agent.git
+cd Log-Agent
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -181,8 +181,8 @@ La ruta del log la pone el agente y nunca se expone al modelo, así que este no 
 Requiere Python 3.10 o superior.
 
 ```bash
-git clone https://github.com/<tu-usuario>/log-agent.git
-cd log-agent
+git clone https://github.com/Kenobiiii/Log-Agent.git
+cd Log-Agent
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
