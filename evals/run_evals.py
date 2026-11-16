@@ -12,6 +12,7 @@ Usage (from the project root):
 
     python evals/run_evals.py --no-diagnose        # skip the LLM diagnosis
     python evals/run_evals.py --label "stricter system prompt"
+    python evals/run_evals.py --suite holdout      # unseen log and cases: measure only
 
 Each run writes to evals/results/<timestamp>/:
     results.jsonl   one line per case: answer, checks, full tool trace, tokens,
@@ -57,6 +58,7 @@ from agent import DEFAULT_MODEL, MAX_STEPS, SYSTEM_PROMPT, LogAgent  # noqa: E40
 from tools import TOOLS  # noqa: E402
 
 DEFAULT_LOG = ROOT / "samples" / "auth.log"
+HOLDOUT_LOG = ROOT / "samples" / "holdout_auth.log"
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 HISTORY_FILE = Path(__file__).resolve().parent / "history.csv"
 
@@ -89,6 +91,7 @@ class Case:
     numbers: list = field(default_factory=list)    # numbers that must appear
     any_of: list = field(default_factory=list)     # groups: at least one per group
     expect_tool_error: bool = False                # a tool error is the correct outcome (bad input)
+    excludes: list = field(default_factory=list)   # substrings that must NOT appear
 
 
 LS, TF, UB = "log_summary", "top_failed_ips", "users_by_ip"
@@ -333,6 +336,13 @@ CASES = [
 ]
 
 
+def load_suite(name: str) -> list[Case]:
+    if name == "holdout":
+        from holdout_cases import HOLDOUT_CASES
+        return [Case(**c) for c in HOLDOUT_CASES]
+    return CASES
+
+
 # =============================================================================
 # Answer checks
 # =============================================================================
@@ -400,6 +410,9 @@ def check_answer(case: Case, answer: str) -> list[str]:
     for group in case.any_of:
         if not any(s.lower() in text for s in group):
             failed.append(f"missing any of: {group}")
+    for s in case.excludes:
+        if s.lower() in text:
+            failed.append(f"unexpected text: {s!r}")
     return failed
 
 
@@ -583,6 +596,7 @@ def diagnose(case: Case, result: dict, model: str, language: str) -> dict:
             "must_contain": case.contains,
             "must_contain_numbers": case.numbers,
             "must_contain_one_of_each_group": case.any_of,
+            "must_not_contain": case.excludes,
         },
         "run": run,
     }
@@ -642,8 +656,7 @@ def run_case(case: Case, log_path: str, model: str, diagnose_with: str | None = 
     return result
 
 
-def select_cases(args) -> list[Case]:
-    cases = CASES
+def select_cases(args, cases: list[Case]) -> list[Case]:
     if args.case:
         wanted = {c.upper() for c in args.case}
         cases = [c for c in cases if c.id in wanted]
@@ -992,7 +1005,9 @@ def main() -> None:
     load_dotenv(ROOT / ".env")
 
     parser = argparse.ArgumentParser(description="Run the evaluation suite for the log agent.")
-    parser.add_argument("--log", default=str(DEFAULT_LOG), help="log file to evaluate against")
+    parser.add_argument("--suite", choices=["main", "holdout"], default="main",
+                        help="main: 105 cases on samples/auth.log; holdout: unseen log and cases (measure only)")
+    parser.add_argument("--log", default=None, help="log file to evaluate against (default depends on --suite)")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--tool", nargs="+", help="only cases for these tools")
     parser.add_argument("--case", nargs="+", help="only these case ids, e.g. CMD-03 SAF-07")
@@ -1009,7 +1024,10 @@ def main() -> None:
     args = parser.parse_args()
     diagnose_with = None if args.no_diagnose else args.diagnose_model
 
-    cases = select_cases(args)
+    suite_cases = load_suite(args.suite)
+    if args.log is None:
+        args.log = str(HOLDOUT_LOG if args.suite == "holdout" else DEFAULT_LOG)
+    cases = select_cases(args, suite_cases)
     if not cases:
         parser.error("no cases selected")
 
@@ -1038,14 +1056,15 @@ def main() -> None:
 
     meta = {
         "run": out_dir.name,
-        "label": args.label or "",
+        "label": (f"[holdout] {args.label}" if args.suite == "holdout" else args.label) or "",
+        "suite": args.suite,
         "started": started.strftime("%Y-%m-%d %H:%M:%S"),
         "model": args.model,
         "log": args.log,
         "duration": round((datetime.now() - started).total_seconds(), 1),
         "prompt_hash": _short_hash(SYSTEM_PROMPT),
         "tools_hash": _short_hash(TOOLS),
-        "evals_hash": _short_hash([[asdict(c) for c in CASES], STATUS_SCORE, CALL_SLACK, LOOP_THRESHOLD]),
+        "evals_hash": _short_hash([[asdict(c) for c in suite_cases], STATUS_SCORE, CALL_SLACK, LOOP_THRESHOLD]),
         **_git_info(),
     }
     summary = build_summary(results, meta)

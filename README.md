@@ -145,6 +145,16 @@ Every run gets a score (PASS = 1, WARN = 0.5, rest = 0) and is compared with the
 python evals/run_evals.py --label "stricter system prompt"
 ```
 
+### Held-out evaluation
+
+`samples/holdout_auth.log` is a second log the agent was never tuned on: a different company, internal networks, log formats and attacks. Its expected answers come from `samples/holdout_truth.json`, written by the generator (`samples/generate_holdout.py`) independently of the tools.
+
+```bash
+python evals/run_evals.py --suite holdout
+```
+
+It measures whether the agent generalizes. Use it only to measure, never to tune: fix what it reveals with the main suite and unit tests, then re-run it.
+
 ### Development log
 
 [`dev_log/`](dev_log/) records every significant change: what was wrong, what was changed and why. Since this is a learning project, the reasoning matters as much as the code.
@@ -304,6 +314,16 @@ Cada ejecución recibe una puntuación (PASS = 1, WARN = 0,5, resto = 0) y se co
 ```bash
 python evals/run_evals.py --label "system prompt más estricto"
 ```
+
+### Evaluación held-out
+
+`samples/holdout_auth.log` es un segundo log con el que el agente nunca se ha ajustado: otra empresa, otras redes internas, otros formatos de log y otros ataques. Sus respuestas esperadas salen de `samples/holdout_truth.json`, que escribe el generador (`samples/generate_holdout.py`) de forma independiente de las herramientas.
+
+```bash
+python evals/run_evals.py --suite holdout
+```
+
+Mide si el agente generaliza. Úsalo solo para medir, nunca para ajustar: arregla lo que revele con los evals principales y los tests unitarios, y después vuelve a ejecutarlo.
 
 ### Diario de desarrollo
 
