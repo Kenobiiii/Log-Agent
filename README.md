@@ -23,6 +23,7 @@ The model never reads the raw log. Python tools parse it and compute exact figur
 | `success_after_failures` | IPs that failed several times and then got in (possible compromised accounts) |
 | `commands_by_ip` | sudo commands and account changes made during the sessions of an IP |
 | `user_activity` | Everything about a username: whether it exists, when it was created, failed attempts per IP, IPs it logged in from and sudo usage |
+| `external_logins` | Every successful login from outside the company network, with or without prior failures, and whether the user normally logs in from inside (catches stolen keys) |
 
 Every tool flags whether an IP belongs to the internal network. This helps the agent tell an attacker apart from an employee who mistyped their password.
 
@@ -33,7 +34,7 @@ log-agent/
 ├── agent.py          # Agent loop, system prompt and CLI
 ├── tools.py          # Log parser, analysis tools and their JSON schemas
 ├── evals/
-│   └── run_evals.py  # 105 test cases, path analysis and LLM diagnosis
+│   └── run_evals.py  # 120 test cases, path analysis and LLM diagnosis
 ├── tests/            # Unit tests for the parser, tools and eval checks (pytest)
 ├── dev_log/          # One entry per significant change: problem, fix, reasoning
 ├── samples/
@@ -130,7 +131,7 @@ Run them after any change to `tools.py` or the eval checks. Evals measure the ag
 
 ### Evaluations
 
-`evals/run_evals.py` runs 105 realistic analyst tasks (15 per tool) against the sample log and checks the answers against known ground truth. It also analyzes the path the agent took: which tools it used, repeated calls, errors, loops and wasted steps.
+`evals/run_evals.py` runs 120 realistic analyst tasks (15 per tool) against the sample log and checks the answers against known ground truth. It also analyzes the path the agent took: which tools it used, repeated calls, errors, loops and wasted steps.
 
 ```bash
 python evals/run_evals.py                    # all cases
@@ -194,6 +195,7 @@ El modelo nunca lee el log en bruto. Las herramientas en Python lo parsean y cal
 | `success_after_failures` | IPs que fallaron varias veces y después consiguieron entrar (posibles cuentas comprometidas) |
 | `commands_by_ip` | Comandos sudo y cambios de cuentas realizados durante las sesiones de una IP |
 | `user_activity` | Todo sobre un usuario: si existe, cuándo se creó, intentos fallidos por IP, IPs desde las que entró y uso de sudo |
+| `external_logins` | Todos los logins exitosos desde fuera de la red de la empresa, con o sin fallos previos, y si el usuario suele entrar desde dentro (detecta claves robadas) |
 
 Todas las herramientas indican si una IP pertenece a la red interna. Esto ayuda al agente a distinguir un atacante de un empleado que se equivocó de contraseña.
 
@@ -204,7 +206,7 @@ log-agent/
 ├── agent.py          # Bucle del agente, system prompt y CLI
 ├── tools.py          # Parser del log, herramientas de análisis y sus esquemas JSON
 ├── evals/
-│   └── run_evals.py  # 105 casos de prueba, análisis del camino y diagnóstico con LLM
+│   └── run_evals.py  # 120 casos de prueba, análisis del camino y diagnóstico con LLM
 ├── tests/            # Tests unitarios del parser, las tools y los checks de los evals (pytest)
 ├── dev_log/          # Una entrada por cambio importante: problema, arreglo, razonamiento
 ├── samples/
@@ -301,7 +303,7 @@ Ejecútalos después de cualquier cambio en `tools.py` o en los checks de los ev
 
 ### Evaluaciones
 
-`evals/run_evals.py` ejecuta 105 tareas realistas de analista (15 por herramienta) sobre el log de ejemplo y comprueba las respuestas contra datos conocidos. También analiza el camino que siguió el agente: qué herramientas usó, llamadas repetidas, errores, bucles y pasos innecesarios.
+`evals/run_evals.py` ejecuta 120 tareas realistas de analista (15 por herramienta) sobre el log de ejemplo y comprueba las respuestas contra datos conocidos. También analiza el camino que siguió el agente: qué herramientas usó, llamadas repetidas, errores, bucles y pasos innecesarios.
 
 ```bash
 python evals/run_evals.py                    # todos los casos
