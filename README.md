@@ -113,6 +113,7 @@ It also works on a real server log, for example `/var/log/auth.log`.
 | `-q`, `--question` | Ask a single question and exit |
 | `-v`, `--verbose` | Print tool calls and their results to stderr |
 | `-m`, `--model` | Model name (default `deepseek-chat`, or `DEEPSEEK_MODEL` env var) |
+| `--internal-networks` | Comma-separated CIDRs of the company network (default: private ranges) |
 
 The agent replies in the language of the question.
 
@@ -161,7 +162,7 @@ It measures whether the agent generalizes. Use it only to measure, never to tune
 
 ### Configuration
 
-- **Internal networks:** edit `INTERNAL_NETWORKS` in `tools.py` (default `10.0.0.0/8`).
+- **Internal networks:** the private ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and `fc00::/7` by default. Set your own with `--internal-networks 10.20.0.0/16,192.168.1.0/24` or the `LOG_AGENT_INTERNAL_NETWORKS` environment variable.
 - **Max items per tool response:** `MAX_ITEMS` in `tools.py`.
 - **Max agent steps:** `MAX_STEPS` in `agent.py`.
 
@@ -283,6 +284,7 @@ También funciona con el log de un servidor real, por ejemplo `/var/log/auth.log
 | `-q`, `--question` | Hace una sola pregunta y termina |
 | `-v`, `--verbose` | Muestra las llamadas a herramientas y sus resultados por stderr |
 | `-m`, `--model` | Nombre del modelo (por defecto `deepseek-chat`, o la variable `DEEPSEEK_MODEL`) |
+| `--internal-networks` | CIDRs de la red de la empresa separados por comas (por defecto: rangos privados) |
 
 El agente responde en el idioma de la pregunta.
 
@@ -331,7 +333,7 @@ Mide si el agente generaliza. Úsalo solo para medir, nunca para ajustar: arregl
 
 ### Configuración
 
-- **Redes internas:** edita `INTERNAL_NETWORKS` en `tools.py` (por defecto `10.0.0.0/8`).
+- **Redes internas:** por defecto, los rangos privados `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` y `fc00::/7`. Para usar los tuyos: `--internal-networks 10.20.0.0/16,192.168.1.0/24` o la variable de entorno `LOG_AGENT_INTERNAL_NETWORKS`.
 - **Máximo de elementos por respuesta de herramienta:** `MAX_ITEMS` en `tools.py`.
 - **Máximo de pasos del agente:** `MAX_STEPS` en `agent.py`.
 

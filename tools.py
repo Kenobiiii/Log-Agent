@@ -9,7 +9,29 @@ from datetime import datetime
 from functools import lru_cache
 from typing import NamedTuple
 
-INTERNAL_NETWORKS = [ipaddress.ip_network("10.0.0.0/8")]
+# Private ranges (RFC 1918 and IPv6 unique local). ipaddress' is_private is not
+# used on purpose: it also treats documentation ranges (192.0.2.0/24,
+# 198.51.100.0/24, 203.0.113.0/24, 2001:db8::/32) as private.
+DEFAULT_INTERNAL_NETWORKS = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"]
+INTERNAL_NETWORKS_ENV = "LOG_AGENT_INTERNAL_NETWORKS"
+
+
+def parse_networks(spec) -> list:
+    """Turn '10.0.0.0/8, 192.168.0.0/16' (or a list) into networks. Raises ValueError."""
+    items = spec.split(",") if isinstance(spec, str) else spec
+    networks = [ipaddress.ip_network(item.strip(), strict=False) for item in items if item.strip()]
+    if not networks:
+        raise ValueError("no internal networks given")
+    return networks
+
+
+def set_internal_networks(spec) -> None:
+    """Configure which networks count as internal (the company network)."""
+    global INTERNAL_NETWORKS
+    INTERNAL_NETWORKS = parse_networks(spec)
+
+
+INTERNAL_NETWORKS = parse_networks(os.getenv(INTERNAL_NETWORKS_ENV) or DEFAULT_INTERNAL_NETWORKS)
 MAX_ITEMS = 30
 ACCOUNT_PROCESSES = {"useradd", "usermod", "userdel", "groupadd", "groupmod", "passwd", "chpasswd", "chage"}
 
