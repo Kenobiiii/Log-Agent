@@ -92,9 +92,10 @@ def test_classify_expected_tool_error_is_not_penalized():
 def test_cases_are_well_formed():
     ids = [c.id for c in CASES]
     assert len(ids) == len(set(ids))
-    tool_names = {t for c in CASES for g in c.expect for t in g} | {c.tool for c in CASES}
+    from run_evals import HONESTY
     from tools import TOOL_FUNCTIONS
-    assert tool_names <= set(TOOL_FUNCTIONS)
+    assert {t for c in CASES for g in c.expect for t in g} <= set(TOOL_FUNCTIONS)
+    assert {c.tool for c in CASES} <= set(TOOL_FUNCTIONS) | {HONESTY}
 
 
 def test_spanish_cases_are_detected_as_spanish():
@@ -127,3 +128,19 @@ def test_holdout_spanish_cases_are_detected_as_spanish():
     from run_evals import load_suite
     spanish = [c for c in load_suite("holdout") if "¿" in c.prompt]
     assert spanish and all(detect_language(c.prompt) == "es" for c in spanish)
+
+
+def test_judge_failures_become_failed_checks():
+    from run_evals import apply_checks
+    case = _case(judge="Must say the log can't answer this.")
+    failed, verdict = apply_checks(case, "It can't be known.", judge=lambda c, a: {"pass": False, "reason": "too vague"})
+    assert failed == ["judge: too vague"] and verdict["pass"] is False
+    failed, _ = apply_checks(case, "It can't be known.", judge=lambda c, a: {"pass": True, "reason": "ok"})
+    assert failed == []
+
+
+def test_no_judge_call_without_criterion():
+    from run_evals import apply_checks
+    def explode(c, a):
+        raise AssertionError("judge must not be called")
+    assert apply_checks(_case(), "anything", judge=explode) == ([], None)
