@@ -27,6 +27,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [017](017-holdout-suite.md) | 2026-11-16 | Conjunto held-out: 42 % frente al 97 % del principal; todos los fallos vienen de las tools |
 | [018](018-parser-formats.md) | 2026-11-16 | El parser entiende IPv6, `message repeated`, `publickey` y `keyboard-interactive` |
 | [019](019-internal-networks.md) | 2026-11-16 | Redes internas: rangos privados por defecto y configurables |
+| [020](020-external-logins.md) | 2026-11-16 | Nueva tool `external_logins`: detecta la clave robada que no tenía fallos previos |
 
 ## Plantilla
 

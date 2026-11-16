@@ -97,6 +97,7 @@ class Case:
 LS, TF, UB = "log_summary", "top_failed_ips", "users_by_ip"
 SL, SAF, CMD = "successful_logins_by_ip", "success_after_failures", "commands_by_ip"
 UA = "user_activity"
+EL = "external_logins"
 
 NO = ["no ", "no.", "no,", "no!", "no:", "no*", "no—", "no –", "never", "nunca", "none", "ninguna", "ninguno",
       "did not", "didn't", "not "]
@@ -260,9 +261,9 @@ CASES = [
     Case("SAF-09", SAF, "Which internal IPs show a failure-then-success pattern with 3 or more failures? "
          "Are they worrying?", [[SAF]], 1, contains=["10.99.0.15", "10.20.8.64"]),
     Case("SAF-10", SAF, "¿Qué cuenta fue la primera en ser comprometida desde una IP externa, cronológicamente?",
-         [[SAF]], 1, contains=["mlopez"]),
+         [[SAF, EL]], 1, contains=["mlopez"]),
     Case("SAF-11", SAF, "The top failure ranking looks scary, but I care about attacks that actually worked, even "
-         "quiet ones. Find low-volume attacks that succeeded.", [[SAF]], 1, contains=["203.0.113.77"]),
+         "quiet ones. Find low-volume attacks that succeeded.", [[SAF, EL]], 1, contains=["203.0.113.77"]),
     Case("SAF-12", SAF, "For each IP that got in after 3+ failures, how many distinct usernames did it try before "
          "succeeding?", [[SAF]], 1, contains=["91.240.118.52", "203.0.113.77"], numbers=[42, 6]),
     Case("SAF-13", SAF, "Was there a successful password spray attack? Explain how you know.", [[SAF]], 2,
@@ -279,7 +280,7 @@ CASES = [
          [[SAF, SL, UA], [CMD]], 2, any_of=[DENIED]),
     Case("CMD-03", CMD, "Full incident response: find any account compromised from an external IP, determine what "
          "the attacker did after logging in (privilege use, new accounts, persistence) and list concrete "
-         "cleanup steps.", [[SAF], [CMD]], 5, contains=["203.0.113.77", "svc-update", "crontab"]),
+         "cleanup steps.", [[SAF, EL], [CMD]], 5, contains=["203.0.113.77", "svc-update", "crontab"]),
     Case("CMD-04", CMD, "Was any new user created on the system during these 3 days? By which account and from "
          "which IP?", [[CMD]], 3, contains=["svc-update", "backup", "203.0.113.77"]),
     Case("CMD-05", CMD, "What sudo commands did sysadmin run from 10.20.0.5?", [[CMD]], 1, contains=["apt upgrade"]),
@@ -312,7 +313,8 @@ CASES = [
          contains=["10.20.0.30"], any_of=[NO]),
     Case("UA-04", UA, "Does an account called 'oracle' exist on this server? How many times did attackers try it?",
          [[UA]], 1, numbers=[71], any_of=[["not exist", "doesn't exist", "does not exist", "no existe", "nonexistent",
-                                           "non-existent", "invalid", "inexistente"]]),
+                                           "non-existent", "invalid", "inexistente", "there is no",
+                                           "no such", "no hay ninguna cuenta"]]),
     Case("UA-05", UA, "¿Desde qué IPs se conecta normalmente jgarcia y con qué método?", [[UA]], 1,
          contains=["10.20.2.16", "10.99.0.121"]),
     Case("UA-06", UA, "How many failed attempts did the backup account receive, and from which IPs?", [[UA]], 1,
@@ -333,6 +335,36 @@ CASES = [
     Case("UA-14", UA, "¿Qué usuario se conecta desde la IP 10.20.0.5 y con qué frecuencia lo hace?", [[UB, SL, UA]], 1, contains=["sysadmin"]),
     Case("UA-15", UA, "Investigate the employee account jrey: is there any sign that it was compromised?", [[UA]], 1,
          contains=["10.20.8.64", "91.240.118.52"]),
+
+    # --- external_logins ------------------------------------------------------
+    Case("EL-01", EL, "Did anyone log in from outside the company network? List them.", [[EL]], 1,
+         contains=["91.240.118.52", "203.0.113.77", "mlopez", "backup", "svc-update"]),
+    Case("EL-02", EL, "How many successful logins came from external IPs?", [[EL]], 1, numbers=[3]),
+    Case("EL-03", EL, "Which accounts were accessed from outside the network, and do those users normally log in "
+         "from inside?", [[EL]], 1, contains=["mlopez", "backup", "svc-update"]),
+    Case("EL-04", EL, "Was any external login made without a single failed attempt first, like a stolen SSH key "
+         "would be?", [[EL]], 1, any_of=[NO]),
+    Case("EL-05", EL, "Which login from outside the network happened first, and when?", [[EL]], 1,
+         contains=["mlopez", "15:27"]),
+    Case("EL-06", EL, "What was the most recent login from outside the network?", [[EL]], 1,
+         contains=["svc-update", "04:03"]),
+    Case("EL-07", EL, "Did the svc-update account ever log in from inside the network?", [[EL, UA]], 1, any_of=[NO]),
+    Case("EL-08", EL, "¿Desde qué IPs externas se ha entrado en el servidor y con qué cuentas?", [[EL]], 1,
+         contains=["91.240.118.52", "203.0.113.77", "mlopez", "backup", "svc-update"]),
+    Case("EL-09", EL, "Did any external IP log into more than one account?", [[EL]], 1,
+         contains=["203.0.113.77", "backup", "svc-update"]),
+    Case("EL-10", EL, "How many failed attempts did each external IP make before its first successful login?",
+         [[EL]], 1, numbers=[83, 16]),
+    Case("EL-11", EL, "Did any login from outside the network use public key authentication?", [[EL]], 1,
+         any_of=[NO]),
+    Case("EL-12", EL, "Has the backup account logged in from outside the network? It should only connect from the "
+         "backup server.", [[EL, UA]], 1, contains=["203.0.113.77", "01:51"]),
+    Case("EL-13", EL, "Were there logins from outside the network at night, between 00:00 and 06:00?", [[EL]], 1,
+         contains=["backup", "svc-update", "203.0.113.77"]),
+    Case("EL-14", EL, "List the external logins in a table with user, IP, time and authentication method.",
+         [[EL]], 1, contains=["mlopez", "backup", "svc-update", "password"]),
+    Case("EL-15", EL, "Is there any external login by a user that never logs in from inside the network?", [[EL]], 1,
+         contains=["svc-update"]),
 ]
 
 

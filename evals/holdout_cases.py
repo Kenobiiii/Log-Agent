@@ -21,6 +21,7 @@ INSIDER, LOCKED, DICT, IPV6 = S["insider_sudo"], S["locked_out"], S["dictionary"
 
 LS, TF, UB = "log_summary", "top_failed_ips", "users_by_ip"
 SL, SAF, CMD, UA = "successful_logins_by_ip", "success_after_failures", "commands_by_ip", "user_activity"
+EL = "external_logins"  # added after the first run (dev log 020): accepted path only
 
 NO = ["no ", "no.", "no,", "no!", "no:", "no*", "no—", "no –", "never", "nunca", "none", "ninguna", "ninguno",
       "did not", "didn't", "not "]
@@ -44,17 +45,17 @@ HOLDOUT_CASES = [
          expect=[[TF]], optimal_calls=1, contains=[ip for ip, _ in TRUTH["top_failed_ips"][:3]],
          numbers=[n for _, n in TRUTH["top_failed_ips"][:3]]),
     dict(id="H-04", tool="compromise", prompt="Was any account compromised in this log? Which accounts, and from "
-         "which IPs?", expect=[[SAF, UA, SL]], optimal_calls=3,
+         "which IPs?", expect=[[SAF, UA, SL, EL]], optimal_calls=3,
          contains=STUFF["compromised"] + [STUFF["ip"], STOLEN["ip"], STOLEN["user"]]),
     dict(id="H-05", tool="compromise", prompt="Did anyone log in from outside the company network? List them.",
-         expect=[[SAF, UA, SL]], optimal_calls=3, contains=[e["ip"] for e in TRUTH["external_logins"]]),
+         expect=[[SAF, UA, SL, EL]], optimal_calls=3, contains=[e["ip"] for e in TRUTH["external_logins"]]),
     dict(id="H-06", tool="compromise", prompt="Is the jenkins service account behaving normally? It should only "
          "connect from the CI server.", expect=[[UA]], optimal_calls=1,
          contains=[STOLEN["ip"], _hhmm(STOLEN["time"])]),
     dict(id="H-07", tool="impact", prompt=f"What did the session from {STOLEN['ip']} do on the server?",
          expect=[[CMD]], optimal_calls=1, contains=["curl", ".m.sh"]),
     dict(id="H-08", tool="compromise", prompt="Did anyone log in successfully from an unknown external location "
-         "without a single failed attempt first? That could be a stolen SSH key.", expect=[[UA, SL, SAF]],
+         "without a single failed attempt first? That could be a stolen SSH key.", expect=[[UA, SL, SAF, EL]],
          optimal_calls=3, contains=[STOLEN["ip"], STOLEN["user"]]),
     dict(id="H-09", tool="compromise", prompt=f"{STUFF['ip']} tried many accounts. How many did it try, and "
          "which did it get into?", expect=[[UB], [SL]], optimal_calls=2,
@@ -92,10 +93,10 @@ HOLDOUT_CASES = [
     dict(id="H-22", tool="overview", prompt="¿Cuántas IPs distintas intentaron entrar en el servidor sin éxito a lo largo de los tres días?",
          expect=[[LS, TF]], optimal_calls=1, numbers=[T["ips_with_failures"]]),
     dict(id="H-23", tool="compromise", prompt="Full incident review: were we compromised, how, and what should "
-         "we do first?", expect=[[SAF], [CMD]], optimal_calls=6, contains=[STOLEN["ip"], STUFF["ip"]]),
+         "we do first?", expect=[[SAF, EL], [CMD]], optimal_calls=6, contains=[STOLEN["ip"], STUFF["ip"]]),
     dict(id="H-24", tool="impact", prompt="Did the pgbackup account run anything unusual?", expect=[[UA], [CMD]],
          optimal_calls=2, contains=["pg_backup.sh"]),
     dict(id="H-25", tool="compromise", prompt="When was the last successful login from outside the network, and "
-         "by whom?", expect=[[UA, SL, SAF]], optimal_calls=3,
+         "by whom?", expect=[[UA, SL, SAF, EL]], optimal_calls=3,
          contains=[TRUTH["external_logins"][-1]["user"], TRUTH["external_logins"][-1]["ip"]]),
 ]
