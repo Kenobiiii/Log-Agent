@@ -20,3 +20,5 @@ run,label,git_commit,git_dirty,model,prompt_hash,tools_hash,evals_hash,cases,sco
 20261116-195657,[holdout] after fixes 018-021,3386ff2,False,deepseek-chat,e0acb747,1fe54321,0f944a96,25,84.0,20,2,3,0,0,1.96,5213,3.58
 20261116-200359,no unverified negatives rule (run 1),a9d0f49,True,deepseek-chat,d2c23185,1fe54321,16a143e0,130,96.9,124,4,2,0,0,1.5,4773,3.22
 20261116-200457,no unverified negatives rule (run 2),a9d0f49,True,deepseek-chat,d2c23185,1fe54321,16a143e0,130,98.1,125,5,0,0,0,1.53,4747,3.21
+20261116-201604,privileged_activity tool,d681565,True,deepseek-chat,e0acb747,6d7bb0d3,d85949bd,145,95.2,134,8,3,0,0,1.44,4817,3.07
+20261116-201741,privileged_activity: command search,d681565,True,deepseek-chat,e0acb747,be8a0757,2f1592d0,8,100.0,8,0,0,0,0,1.75,5993,3.79

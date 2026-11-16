@@ -22,6 +22,7 @@ INSIDER, LOCKED, DICT, IPV6 = S["insider_sudo"], S["locked_out"], S["dictionary"
 LS, TF, UB = "log_summary", "top_failed_ips", "users_by_ip"
 SL, SAF, CMD, UA = "successful_logins_by_ip", "success_after_failures", "commands_by_ip", "user_activity"
 EL = "external_logins"  # added after the first run (dev log 020): accepted path only
+PA = "privileged_activity"  # added later (dev log 026): accepted path only
 
 NO = ["no ", "no.", "no,", "no!", "no:", "no*", "no—", "no –", "never", "nunca", "none", "ninguna", "ninguno",
       "did not", "didn't", "not "]
@@ -66,7 +67,7 @@ HOLDOUT_CASES = [
          "Is that IP part of our network?", expect=[[UA]], optimal_calls=1,
          contains=[FOREIGN["ip"], _hhmm(FOREIGN["time"])]),
     dict(id="H-12", tool="users", prompt="¿Algún empleado de la red interna ha intentado usar sudo sin tener "
-         "permiso? ¿Quién y cuántas veces?", expect=[[UA, CMD]], optimal_calls=3,
+         "permiso? ¿Quién y cuántas veces?", expect=[[UA, CMD, PA]], optimal_calls=3,
          contains=[INSIDER["user"]], numbers=[INSIDER["denied"]]),
     dict(id="H-13", tool="users", prompt="ava.johnson says they couldn't log in on the morning of Dec 3. What "
          "happened?", expect=[[UA]], optimal_calls=1, contains=[LOCKED["ip"]], numbers=[LOCKED["failures"]]),

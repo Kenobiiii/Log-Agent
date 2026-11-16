@@ -10,7 +10,7 @@ Usage (from the project root):
     python evals/run_evals.py --case CMD-03 SAF-07
     python evals/run_evals.py --per-tool 2 --workers 6
 
-    python evals/run_evals.py --no-diagnose        # skip the LLM diagnosis
+    python evals/run_evals.py --diagnose           # also run the LLM root-cause diagnosis
     python evals/run_evals.py --label "stricter system prompt"
     python evals/run_evals.py --suite holdout      # unseen log and cases: measure only
 
@@ -28,7 +28,7 @@ Comparison: each run is compared with the latest earlier run that shares cases
 
 Non-passing cases get two kinds of feedback:
     hints       deterministic rules that point to the likely culprit
-    diagnosis   an LLM reviews prompt, tools, trace and answer and returns the
+    diagnosis   (with --diagnose) an LLM reviews prompt, tools, trace and answer and returns the
                 root cause, evidence, fix and where to apply it
 """
 
@@ -99,6 +99,7 @@ LS, TF, UB = "log_summary", "top_failed_ips", "users_by_ip"
 SL, SAF, CMD = "successful_logins_by_ip", "success_after_failures", "commands_by_ip"
 UA = "user_activity"
 EL = "external_logins"
+PA = "privileged_activity"
 HONESTY = "honesty"  # category, not a tool: answers that must not claim more than the log shows
 
 NO = ["no ", "no.", "no,", "no!", "no:", "no*", "no—", "no –", "never", "nunca", "none", "ninguna", "ninguno",
@@ -123,7 +124,7 @@ CASES = [
     Case("LS-05", LS, "Which five usernames received the most failed attempts? Include the counts.",
          [[LS]], 1, contains=["root", "admin", "guest", "deploy", "test"], numbers=[2155, 281]),
     Case("LS-06", LS, "Was there any sudo activity or user account changes recorded in this log? Give me the counts.",
-         [[LS]], 1, numbers=[30, 3]),
+         [[LS, PA]], 1, numbers=[30, 3]),
     Case("LS-07", LS, "Estoy rellenando el informe semanal: necesito eventos SSH totales, logins correctos, "
          "intentos fallidos y número de usuarios únicos.", [[LS]], 1, numbers=[4649, 502, 4147, 159]),
     Case("LS-08", LS, "What's the ratio of failed to successful logins on this server, and is that ratio alarming?",
@@ -280,12 +281,12 @@ CASES = [
     Case("CMD-01", CMD, "What did 203.0.113.77 do after logging in?", [[CMD]], 1,
          contains=["shadow", "svc-update", "wget"]),
     Case("CMD-02", CMD, "Did the attacker who got into mlopez's account manage to escalate privileges?",
-         [[SAF, SL, UA], [CMD]], 2, any_of=[DENIED]),
+         [[SAF, SL, UA, PA], [CMD, PA]], 2, any_of=[DENIED]),
     Case("CMD-03", CMD, "Full incident response: find any account compromised from an external IP, determine what "
          "the attacker did after logging in (privilege use, new accounts, persistence) and list concrete "
          "cleanup steps.", [[SAF, EL], [CMD]], 5, contains=["203.0.113.77", "svc-update", "crontab"]),
     Case("CMD-04", CMD, "Was any new user created on the system during these 3 days? By which account and from "
-         "which IP?", [[CMD]], 3, contains=["svc-update", "backup", "203.0.113.77"]),
+         "which IP?", [[CMD, PA]], 3, contains=["svc-update", "backup", "203.0.113.77"]),
     Case("CMD-05", CMD, "What sudo commands did sysadmin run from 10.20.0.5?", [[CMD]], 1, contains=["apt upgrade"]),
     Case("CMD-06", CMD, "List the privileged commands the deploy account ran from 10.20.0.30.", [[CMD]], 1,
          contains=["app.service"]),
@@ -384,10 +385,40 @@ CASES = [
     Case("HN-08", HONESTY, "Did 91.240.118.52 also attack other servers of the company?", [], 0, judge=UNANSWERABLE),
     # Log-wide questions whose answer is "yes" but needs checking the whole log:
     # a partial check must not turn into a confident "no" (held-out H-12, dev log 023).
-    Case("HN-09", HONESTY, "Was any user denied sudo on this server during these days? Who?", [[CMD, UA, SAF, EL]], 3,
+    Case("HN-09", HONESTY, "Was any user denied sudo on this server during these days? Who?", [[CMD, UA, SAF, EL, PA]], 3,
          contains=["mlopez"]),
-    Case("HN-10", HONESTY, "Did anyone read /etc/shadow on this server?", [[CMD]], 3,
+    Case("HN-10", HONESTY, "Did anyone read /etc/shadow on this server?", [[CMD, PA]], 3,
          contains=["shadow", "203.0.113.77"]),
+
+    # --- privileged_activity ---------------------------------------------------
+    Case("PA-01", PA, "Was anyone denied sudo on this server? Who, when, and which command?", [[PA]], 1,
+         contains=["mlopez", "/bin/bash", "91.240.118.52"]),
+    Case("PA-02", PA, "How many sudo commands were run in total, and how many were denied?", [[PA, LS]], 1,
+         numbers=[30]),
+    Case("PA-03", PA, "Which users ran sudo commands, and how many each?", [[PA]], 1,
+         contains=["jgarcia", "backup", "deploy", "sysadmin", "svc-update", "itorres", "mlopez"], numbers=[10, 7]),
+    Case("PA-04", PA, "Were any user accounts created or modified during these days?", [[PA]], 1,
+         contains=["svc-update", "sudo"]),
+    Case("PA-05", PA, "Did anyone run sudo commands from outside the company network?", [[PA]], 1,
+         contains=["203.0.113.77", "backup", "svc-update"]),
+    Case("PA-06", PA, "¿Qué comandos sudo se ejecutaron desde IPs externas a la red de la empresa?", [[PA, CMD]], 2,
+         contains=["shadow", "wget"]),
+    Case("PA-07", PA, "Which account ran the most sudo commands?", [[PA]], 1, contains=["jgarcia"], numbers=[10]),
+    Case("PA-08", PA, "Did any employee connected from the internal network get a sudo command denied?", [[PA]], 1,
+         any_of=[NO]),
+    Case("PA-09", PA, "When was the svc-update account given sudo rights, and which account did it?", [[PA]], 2,
+         contains=["svc-update", "backup", "02:06"]),
+    Case("PA-10", PA, "List every privileged command run by svc-update.", [[PA, CMD]], 1, contains=["wget", ".x.sh"]),
+    Case("PA-11", PA, "Has anyone used sudo to read /etc/shadow? Who and from where?", [[PA, CMD]], 1,
+         contains=["backup", "203.0.113.77"]),
+    Case("PA-12", PA, "Which sudo commands does the deploy account usually run?", [[PA, CMD]], 1,
+         contains=["app.service"]),
+    Case("PA-13", PA, "Did the sysadmin account run anything unusual with sudo?", [[PA, CMD]], 1,
+         contains=["apt upgrade"]),
+    Case("PA-14", PA, "Are there sudo commands whose source IP can't be determined with certainty? Whose?", [[PA]], 1,
+         contains=["backup"]),
+    Case("PA-15", PA, "Did the attacker who logged in as mlopez manage to run anything as root?", [[PA, CMD, UA]], 1,
+         any_of=[DENIED]),
 ]
 
 
@@ -1107,8 +1138,8 @@ def main() -> None:
     parser.add_argument("--case", nargs="+", help="only these case ids, e.g. CMD-03 SAF-07")
     parser.add_argument("--per-tool", type=int, help="max cases per tool")
     parser.add_argument("--workers", type=int, default=4, help="cases run in parallel")
-    parser.add_argument("--no-diagnose", action="store_true",
-                        help="skip the LLM root-cause analysis of non-passing cases")
+    parser.add_argument("--diagnose", action="store_true",
+                        help="run the LLM root-cause analysis of non-passing cases (extra API calls)")
     parser.add_argument("--diagnose-model", default=DEFAULT_MODEL, help="model used for diagnosis")
     parser.add_argument("--lang", default="Spanish", help="language of the diagnosis text")
     parser.add_argument("--label", help="short description of this run, e.g. 'stricter system prompt'")
@@ -1116,7 +1147,7 @@ def main() -> None:
                                            "default: latest earlier run sharing cases")
     parser.add_argument("--no-compare", action="store_true", help="skip the comparison")
     args = parser.parse_args()
-    diagnose_with = None if args.no_diagnose else args.diagnose_model
+    diagnose_with = args.diagnose_model if args.diagnose else None
 
     suite_cases = load_suite(args.suite)
     if args.log is None:

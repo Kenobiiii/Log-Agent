@@ -460,6 +460,79 @@ def external_logins(path: str) -> dict:
     }
 
 
+def _source_ips(log: ParsedLog, user: str, ts: datetime) -> list[str]:
+    """IPs of the user's SSH sessions open at `ts` (sudo lines don't include the IP)."""
+    return sorted({s["ip"] for s in log.sessions
+                   if s["user"] == user and s["start"] <= ts <= _session_end(s, log)})
+
+
+def privileged_activity(path: str, user: str | None = None, command: str | None = None) -> dict:
+    """sudo commands and account changes across the whole log."""
+    if user is not None and (err := _validate_user(user)):
+        return {"error": err}
+    log = parse_log(path)
+
+    def describe(cmd):
+        ips = _source_ips(log, cmd["user"], cmd["ts"])
+        return {
+            "timestamp": cmd["ts"].isoformat(),
+            "user": cmd["user"],
+            "command": cmd["command"],
+            "run_as": cmd["run_as"],
+            "denied": cmd["error"] is not None,
+            "error": cmd["error"],
+            "source_ips": [{"ip": ip, "internal": _is_internal(ip)} for ip in ips],
+            "source_uncertain": len(ips) != 1,
+        }
+
+    by_user = defaultdict(lambda: {"commands": 0, "denied": 0, "ips": set(), "first": None, "last": None})
+    for cmd in log.sudo:
+        u = by_user[cmd["user"]]
+        u["commands"] += 1
+        u["denied"] += cmd["error"] is not None
+        u["ips"].update(_source_ips(log, cmd["user"], cmd["ts"]))
+        u["first"] = u["first"] or cmd["ts"]
+        u["last"] = cmd["ts"]
+
+    denied = [describe(c) for c in log.sudo if c["error"]]
+    result = {
+        "sudo_commands": len(log.sudo),
+        "denied_commands": len(denied),
+        "users": [
+            {
+                "user": name,
+                "commands": u["commands"],
+                "denied": u["denied"],
+                "source_ips": [{"ip": ip, "internal": _is_internal(ip)} for ip in sorted(u["ips"])],
+                "first": u["first"].isoformat(),
+                "last": u["last"].isoformat(),
+            }
+            for name, u in sorted(by_user.items(), key=lambda kv: -kv[1]["commands"])
+        ][:MAX_ITEMS],
+        "denied": denied[:MAX_ITEMS],
+        "account_changes": [
+            {"timestamp": a["ts"].isoformat(), "process": a["process"], "message": a["message"]}
+            for a in log.accounts
+        ][:MAX_ITEMS],
+        "truncated": len(by_user) > MAX_ITEMS or len(denied) > MAX_ITEMS or len(log.accounts) > MAX_ITEMS,
+        "note": ("sudo lines don't include the source IP; source_ips are the user's SSH sessions open "
+                 "at that moment (none: not an SSH session; several: can't tell which one)."),
+    }
+    if user is not None:
+        user = user.strip()
+        commands = [describe(c) for c in log.sudo if c["user"] == user]
+        result["user"] = user
+        result["user_commands"] = commands[:MAX_ITEMS]
+        result["truncated"] = result["truncated"] or len(commands) > MAX_ITEMS
+    if command:
+        needle = str(command).strip().lower()
+        matches = [describe(c) for c in log.sudo if needle in c["command"].lower()]
+        result["command_search"] = command
+        result["matching_commands"] = matches[:MAX_ITEMS]
+        result["truncated"] = result["truncated"] or len(matches) > MAX_ITEMS
+    return result
+
+
 NEW_USER_RE = re.compile(r"new user: name=(?P<user>[^,\s]+)")
 
 
@@ -543,6 +616,7 @@ TOOL_FUNCTIONS = {
     "commands_by_ip": commands_by_ip,
     "user_activity": user_activity,
     "external_logins": external_logins,
+    "privileged_activity": privileged_activity,
 }
 
 _IP_PARAMS = {
@@ -679,6 +753,28 @@ TOOLS = [
                 "logs in from inside and suddenly appears from outside is a strong signal."
             ),
             "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "privileged_activity",
+            "description": (
+                "sudo commands and account changes (useradd, usermod, passwd...) across the WHOLE "
+                "log: totals, per user (commands, denied, source IPs and whether they are "
+                "internal), every denied command, and every account change. Use it for "
+                "log-wide questions such as 'was anyone denied sudo?' or 'was any account "
+                "created?'. Pass user to also get that user's full command list, or command "
+                "to search all sudo commands for a text (e.g. '/etc/shadow', 'wget')."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user": {"type": "string", "description": "Optional username to list all its sudo commands"},
+                    "command": {"type": "string",
+                                "description": "Optional text to search for in every sudo command (case-insensitive)"},
+                },
+            },
         },
     },
 ]

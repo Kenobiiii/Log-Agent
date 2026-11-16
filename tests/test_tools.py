@@ -8,6 +8,7 @@ import pytest
 import tools
 from tools import (
     TOOL_FUNCTIONS,
+    privileged_activity,
     external_logins,
     TOOLS,
     commands_by_ip,
@@ -249,3 +250,61 @@ def test_user_activity_dates_failures(write_log):
     assert by_ip["failures"] == 3
     assert (by_ip["first_failure"][5:], by_ip["last_failure"][5:]) == ("12-01T10:48:40", "12-03T09:05:04")
     assert [(d["date"][5:], d["failures"]) for d in ua["failures_by_day"]] == [("12-01", 1), ("12-03", 2)]
+
+
+# --- privileged_activity (dev log 026) ---------------------------------------------
+
+def test_privileged_activity_mini(mini_log):
+    r = privileged_activity(mini_log)
+    assert (r["sudo_commands"], r["denied_commands"]) == (2, 1)
+    assert r["users"][0]["user"] == "alice"
+    assert r["users"][0]["source_ips"] == [{"ip": "1.2.3.4", "internal": False}]
+    assert (r["users"][0]["commands"], r["users"][0]["denied"]) == (2, 1)
+    assert r["denied"][0]["command"] == "/bin/bash" and r["denied"][0]["source_uncertain"] is False
+    assert "name=evil" in r["account_changes"][0]["message"]
+    assert "user_commands" not in r
+
+
+def test_privileged_activity_user_filter(mini_log):
+    r = privileged_activity(mini_log, user="alice")
+    assert [c["command"] for c in r["user_commands"]] == ["/usr/bin/cat /etc/shadow", "/bin/bash"]
+    assert privileged_activity(mini_log, user="nobody")["user_commands"] == []
+    assert "use users_by_ip" in privileged_activity(mini_log, user="1.2.3.4")["error"]
+
+
+def test_privileged_activity_flags_uncertain_source(write_log):
+    # Two sessions of the same user open at once from different IPs: the sudo line
+    # can't be attributed to one of them.
+    path = write_log(
+        "Dec  1 08:00:00 srv sshd[1]: Accepted publickey for ops from 10.0.0.5 port 1 ssh2: ED25519 SHA256:a\n"
+        "Dec  1 08:01:00 srv sshd[2]: Accepted password for ops from 203.0.113.9 port 2 ssh2\n"
+        "Dec  1 08:02:00 srv sudo:    ops : TTY=pts/0 ; PWD=/home/ops ; USER=root ; COMMAND=/usr/bin/id\n"
+        "Dec  1 08:05:00 srv sshd[1]: pam_unix(sshd:session): session closed for user ops\n"
+        "Dec  1 08:06:00 srv sshd[2]: pam_unix(sshd:session): session closed for user ops\n")
+    cmd = privileged_activity(path, user="ops")["user_commands"][0]
+    assert [x["ip"] for x in cmd["source_ips"]] == ["10.0.0.5", "203.0.113.9"]
+    assert cmd["source_uncertain"] is True
+
+
+def test_sample_privileged_activity(sample_log):
+    r = privileged_activity(sample_log)
+    assert (r["sudo_commands"], r["denied_commands"]) == (30, 1)
+    assert r["denied"][0]["user"] == "mlopez"
+    assert [(u["user"], u["commands"]) for u in r["users"][:2]] == [("jgarcia", 10), ("backup", 7)]
+    assert len(r["account_changes"]) == 3
+
+
+def test_privileged_activity_sudo_outside_ssh(write_log):
+    # sudo from the local console: no SSH session to take the IP from.
+    path = write_log("Dec  1 08:02:00 srv sudo:    ops : TTY=tty1 ; PWD=/root ; USER=root ; COMMAND=/usr/bin/id\n")
+    cmd = privileged_activity(path, user="ops")["user_commands"][0]
+    assert cmd["source_ips"] == [] and cmd["source_uncertain"] is True
+
+
+def test_privileged_activity_command_search(mini_log, sample_log):
+    r = privileged_activity(mini_log, command="SHADOW")
+    assert [(c["user"], c["command"]) for c in r["matching_commands"]] == [("alice", "/usr/bin/cat /etc/shadow")]
+    assert privileged_activity(mini_log, command="rm -rf")["matching_commands"] == []
+    assert "matching_commands" not in privileged_activity(mini_log)
+    sample = privileged_activity(sample_log, command="/etc/shadow")["matching_commands"]
+    assert [(c["user"], [x["ip"] for x in c["source_ips"]]) for c in sample] == [("backup", ["203.0.113.77"])]
