@@ -33,6 +33,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [023](023-llm-judge.md) | 2026-11-16 | Un LLM como juez para lo que los checks de texto no pueden comprobar |
 | [024](024-unverified-negatives-rule-rejected.md) | 2026-11-16 | Regla para no negar lo no comprobado: probada y descartada (no mejora, a veces se rinde sin buscar) |
 | [025](025-token-usage.md) | 2026-11-17 | Consumo de tokens: dónde se va y diagnóstico opcional (`--diagnose`) |
+| [026](026-privileged-activity.md) | 2026-11-17 | Nueva tool `privileged_activity`: sudo y cambios de cuentas de todo el log |
 
 ## Plantilla
 
