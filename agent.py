@@ -9,7 +9,7 @@ import time
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from tools import TOOLS, run_tool
+from tools import INTERNAL_NETWORKS_ENV, TOOLS, run_tool, set_internal_networks
 
 DEFAULT_MODEL = "deepseek-chat"
 MAX_STEPS = 10
@@ -138,7 +138,16 @@ def main() -> None:
     parser.add_argument("-q", "--question", help="ask a single question and exit")
     parser.add_argument("-m", "--model", default=os.getenv("DEEPSEEK_MODEL", DEFAULT_MODEL))
     parser.add_argument("-v", "--verbose", action="store_true", help="show tool calls")
+    parser.add_argument("--internal-networks", default=os.getenv(INTERNAL_NETWORKS_ENV),
+                        help="comma-separated CIDRs of the company network "
+                             "(default: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7)")
     args = parser.parse_args()
+
+    if args.internal_networks:
+        try:
+            set_internal_networks(args.internal_networks)
+        except ValueError as e:
+            parser.error(f"--internal-networks: {e}")
 
     if not os.path.isfile(args.log):
         parser.error(f"file not found: {args.log}")
