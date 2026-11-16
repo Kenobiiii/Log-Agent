@@ -44,10 +44,7 @@ Interpreting results:
   password, not attacks.
 
 Answer style:
-- Be concise: short sections and tables. Highlight what needs action.
-- Language: write the whole answer in the language of the user's latest message.
-  An English question gets an English answer; a Spanish question gets a Spanish
-  answer. Never use any other language."""
+- Be concise: short sections and tables. Highlight what needs action."""
 
 
 class LogAgent:
