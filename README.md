@@ -6,6 +6,8 @@
 
 ## English
 
+> **This is a learning project.** I'm building it step by step with the help of [Claude](https://claude.com/claude-code) to understand how LLM agents work in practice: designing tools, writing the agent loop, evaluating the agent with evals and improving it based on what they show. Every significant change, and the reasoning behind it, is documented in [`dev_log/`](dev_log/).
+
 An LLM agent that analyzes SSH authentication logs (`auth.log` / syslog format) using the DeepSeek API with function calling.
 
 The model never reads the raw log. Python tools parse it and compute exact figures, and the LLM decides which tools to call, chains them together and writes the final report. This keeps numbers accurate and token usage low.
@@ -29,6 +31,9 @@ Every tool flags whether an IP belongs to the internal network. This helps the a
 log-agent/
 ├── agent.py          # Agent loop, system prompt and CLI
 ├── tools.py          # Log parser, analysis tools and their JSON schemas
+├── evals/
+│   └── run_evals.py  # 90 test cases, path analysis and LLM diagnosis
+├── dev_log/          # One entry per significant change: problem, fix, reasoning
 ├── samples/
 │   └── auth.log      # Synthetic 3-day log to try the agent
 ├── requirements.txt
@@ -71,7 +76,7 @@ cp .env.example .env   # then add your DeepSeek API key
 
 ### Sample log
 
-`samples/auth.log` is a synthetic log (~15,700 lines) covering 3 days on a server of a mid-size company with about 120 employees. All IPs, users and events are fictitious. Along with normal activity (office/VPN logins, service accounts, cron, internet scanners), it contains several attack scenarios for the agent to find:
+`samples/auth.log` is a synthetic log (~16,000 lines) covering 3 days on a server of a mid-size company with about 120 employees. All IPs, users and events are fictitious. Along with normal activity (office/VPN logins, service accounts, cron, internet scanners), it contains several attack scenarios for the agent to find:
 
 - A brute-force attack against `root` and a username dictionary attack.
 - A password spray over real employee names that ends in a successful login.
@@ -109,6 +114,22 @@ It also works on a real server log, for example `/var/log/auth.log`.
 
 The agent replies in the language of the question.
 
+### Evaluations
+
+`evals/run_evals.py` runs 90 realistic analyst tasks (15 per tool) against the sample log and checks the answers against known ground truth. It also analyzes the path the agent took: which tools it used, repeated calls, errors, loops and wasted steps.
+
+```bash
+python evals/run_evals.py                    # all cases
+python evals/run_evals.py --tool users_by_ip # one tool
+python evals/run_evals.py --case UB-09       # specific cases
+```
+
+Each case ends as **PASS**, **WARN** (correct but inefficient), **FAIL**, **STUCK** or **ERROR**. For anything that isn't a PASS, a second LLM reviews the run and suggests the root cause and a fix. Results are written to `evals/results/<timestamp>/` (`report.md` and `results.jsonl`).
+
+### Development log
+
+[`dev_log/`](dev_log/) records every significant change: what was wrong, what was changed and why. Since this is a learning project, the reasoning matters as much as the code.
+
 ### Configuration
 
 - **Internal networks:** edit `INTERNAL_NETWORKS` in `tools.py` (default `10.0.0.0/8`).
@@ -125,6 +146,8 @@ The agent replies in the language of the question.
 ---
 
 ## Español
+
+> **Este es un proyecto de aprendizaje.** Lo estoy construyendo paso a paso con ayuda de [Claude](https://claude.com/claude-code) para entender cómo funcionan los agentes LLM en la práctica: diseñar herramientas, escribir el bucle del agente, evaluarlo con evals y mejorarlo según lo que muestran. Cada cambio importante, y el razonamiento detrás, queda documentado en [`dev_log/`](dev_log/).
 
 Un agente basado en LLM que analiza logs de autenticación SSH (formato `auth.log` / syslog) usando la API de DeepSeek con *function calling*.
 
@@ -149,6 +172,9 @@ Todas las herramientas indican si una IP pertenece a la red interna. Esto ayuda 
 log-agent/
 ├── agent.py          # Bucle del agente, system prompt y CLI
 ├── tools.py          # Parser del log, herramientas de análisis y sus esquemas JSON
+├── evals/
+│   └── run_evals.py  # 90 casos de prueba, análisis del camino y diagnóstico con LLM
+├── dev_log/          # Una entrada por cambio importante: problema, arreglo, razonamiento
 ├── samples/
 │   └── auth.log      # Log sintético de 3 días para probar el agente
 ├── requirements.txt
@@ -191,7 +217,7 @@ cp .env.example .env   # y añade tu API key de DeepSeek
 
 ### Log de ejemplo
 
-`samples/auth.log` es un log sintético (~15.700 líneas) de 3 días en un servidor de una empresa mediana de unos 120 empleados. Todas las IPs, usuarios y eventos son ficticios. Además de la actividad normal (logins desde oficina y VPN, cuentas de servicio, cron, escáneres de internet), contiene varios escenarios de ataque para que el agente los encuentre:
+`samples/auth.log` es un log sintético (~16.000 líneas) de 3 días en un servidor de una empresa mediana de unos 120 empleados. Todas las IPs, usuarios y eventos son ficticios. Además de la actividad normal (logins desde oficina y VPN, cuentas de servicio, cron, escáneres de internet), contiene varios escenarios de ataque para que el agente los encuentre:
 
 - Un ataque de fuerza bruta contra `root` y otro de diccionario de nombres de usuario.
 - Un *password spray* sobre nombres reales de empleados que termina en un login exitoso.
@@ -228,6 +254,22 @@ También funciona con el log de un servidor real, por ejemplo `/var/log/auth.log
 | `-m`, `--model` | Nombre del modelo (por defecto `deepseek-chat`, o la variable `DEEPSEEK_MODEL`) |
 
 El agente responde en el idioma de la pregunta.
+
+### Evaluaciones
+
+`evals/run_evals.py` ejecuta 90 tareas realistas de analista (15 por herramienta) sobre el log de ejemplo y comprueba las respuestas contra datos conocidos. También analiza el camino que siguió el agente: qué herramientas usó, llamadas repetidas, errores, bucles y pasos innecesarios.
+
+```bash
+python evals/run_evals.py                    # todos los casos
+python evals/run_evals.py --tool users_by_ip # una herramienta
+python evals/run_evals.py --case UB-09       # casos concretos
+```
+
+Cada caso termina como **PASS**, **WARN** (correcto pero ineficiente), **FAIL**, **STUCK** o **ERROR**. Para todo lo que no es PASS, un segundo LLM revisa la ejecución y propone la causa raíz y un arreglo. Los resultados se guardan en `evals/results/<fecha>/` (`report.md` y `results.jsonl`).
+
+### Diario de desarrollo
+
+[`dev_log/`](dev_log/) registra cada cambio importante: qué fallaba, qué se cambió y por qué. Como es un proyecto de aprendizaje, el razonamiento importa tanto como el código.
 
 ### Configuración
 
