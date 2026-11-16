@@ -194,6 +194,8 @@ def log_summary(path: str) -> dict:
         "ips_with_failures": len({e["ip"] for e in failed}),
         "unique_users": len({e["user"] for e in events}),
         "failures_on_nonexistent_users": sum(e["invalid_user"] for e in failed),
+        "successful_logins_by_method": dict(Counter(e["method"] for e in accepted).most_common()),
+        "failed_attempts_by_method": dict(Counter(e["method"] for e in failed).most_common()),
         "sudo_commands": len(log.sudo),
         "account_changes": len(log.accounts),
         "first_event": events[0]["ts"].isoformat(),
@@ -204,24 +206,28 @@ def log_summary(path: str) -> dict:
     }
 
 
-def top_failed_ips(path: str, n: int = 5) -> dict:
+def top_failed_ips(path: str, n: int = 5, method: str | None = None) -> dict:
     try:
         n = max(1, min(int(n), MAX_ITEMS))
     except (TypeError, ValueError):
         return {"error": f"'n' must be an integer, got {n!r}"}
+    methods = sorted(set(AUTH_METHODS.values()))
+    if method is not None and method not in methods:
+        return {"error": f"Unknown method {method!r}; use one of {methods}"}
 
     failures = Counter()
     successes = Counter()
     users = defaultdict(set)
     for e in parse_log(path).events:
         if e["kind"] == "failed":
-            failures[e["ip"]] += 1
-            users[e["ip"]].add(e["user"])
+            if method is None or e["method"] == method:
+                failures[e["ip"]] += 1
+                users[e["ip"]].add(e["user"])
         else:
             successes[e["ip"]] += 1
 
     top = failures.most_common(n)
-    return {
+    result = {
         "ips_with_failures": len(failures),
         "ips_returned": len(top),
         "top": [
@@ -236,6 +242,12 @@ def top_failed_ips(path: str, n: int = 5) -> dict:
         ],
         "subnets_in_top": _group_by_subnet(top),
     }
+    if method is not None:
+        # Only failures with this auth method are counted; list the usernames too.
+        result = {"method": method, **result}
+        for entry in result["top"]:
+            entry["users"] = sorted(users[entry["ip"]])[:10]
+    return result
 
 
 def _group_by_subnet(ip_counts: list[tuple[str, int]]) -> list[dict]:
@@ -634,7 +646,8 @@ TOOLS = [
             "name": "log_summary",
             "description": (
                 "Overall figures of the SSH log: line count, failed attempts, "
-                "successful logins, unique IPs and users, sudo commands, account "
+                "successful logins (both also broken down by auth method: password, "
+                "publickey, keyboard-interactive), unique IPs and users, sudo commands, account "
                 "changes, time range, and the top 5 usernames by failed attempts "
                 "(top_usernames_by_failures). Use it for questions about totals "
                 "or about which usernames/accounts are attacked the most."
@@ -651,12 +664,15 @@ TOOLS = [
                 "how many are in the list. For each IP returns failures, distinct usernames tried, successful logins "
                 "and whether it belongs to the internal network. Also groups the "
                 "returned IPs by /24 subnet (subnets_in_top) to reveal distributed "
-                "attacks; use those counts instead of counting IPs yourself."
+                "attacks; use those counts instead of counting IPs yourself. Pass method to "
+                "count only failures of one auth method (e.g. failed public-key attempts)."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "n": {"type": "integer", "description": "Number of IPs to return (1-30). Default 5."}
+                    "n": {"type": "integer", "description": "Number of IPs to return (1-30). Default 5."},
+                    "method": {"type": "string", "enum": ["password", "publickey", "keyboard-interactive"],
+                               "description": "Optional: only count failed attempts with this auth method."},
                 },
             },
         },

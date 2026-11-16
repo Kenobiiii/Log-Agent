@@ -308,3 +308,32 @@ def test_privileged_activity_command_search(mini_log, sample_log):
     assert "matching_commands" not in privileged_activity(mini_log)
     sample = privileged_activity(sample_log, command="/etc/shadow")["matching_commands"]
     assert [(c["user"], [x["ip"] for x in c["source_ips"]]) for c in sample] == [("backup", ["203.0.113.77"])]
+
+
+# --- Breakdown by authentication method (dev log 027) -------------------------------
+
+def test_log_summary_by_method(mini_log):
+    s = log_summary(mini_log)
+    assert s["successful_logins_by_method"] == {"password": 1, "publickey": 1}
+    assert s["failed_attempts_by_method"] == {"password": 3}
+
+
+def test_top_failed_ips_filters_by_method(write_log):
+    path = write_log(
+        "Dec  1 08:00:00 srv sshd[1]: Failed publickey for git from 80.1.2.3 port 1 ssh2: RSA SHA256:a\n"
+        "Dec  1 08:00:01 srv sshd[2]: Failed publickey for root from 80.1.2.3 port 2 ssh2: RSA SHA256:a\n"
+        "Dec  1 08:00:02 srv sshd[3]: Failed password for root from 80.1.2.3 port 3 ssh2\n"
+        "Dec  1 08:00:03 srv sshd[4]: Failed password for root from 9.9.9.9 port 4 ssh2\n")
+    everything = top_failed_ips(path, n=5)
+    assert [(x["ip"], x["failures"]) for x in everything["top"]] == [("80.1.2.3", 3), ("9.9.9.9", 1)]
+    assert "users" not in everything["top"][0] and "method" not in everything
+
+    pk = top_failed_ips(path, n=5, method="publickey")
+    assert pk["method"] == "publickey"
+    assert [(x["ip"], x["failures"], x["users"]) for x in pk["top"]] == [("80.1.2.3", 2, ["git", "root"])]
+    assert pk["ips_with_failures"] == 1
+
+
+def test_top_failed_ips_rejects_unknown_method(mini_log):
+    assert "Unknown method" in top_failed_ips(mini_log, method="kerberos")["error"]
+    assert "Unknown method" in json.loads(run_tool("top_failed_ips", '{"method": "kerberos"}', mini_log))["error"]
