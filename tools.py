@@ -143,7 +143,7 @@ def log_summary(path: str) -> dict:
         "account_changes": len(log.accounts),
         "first_event": events[0]["ts"].isoformat(),
         "last_event": events[-1]["ts"].isoformat(),
-        "most_targeted_users": [
+        "top_usernames_by_failures": [
             {"user": u, "failures": n} for u, n in targeted_users.most_common(5)
         ],
     }
@@ -385,10 +385,11 @@ TOOLS = [
         "function": {
             "name": "log_summary",
             "description": (
-                "General overview of the SSH log: line count, failed attempts, "
+                "Overall figures of the SSH log: line count, failed attempts, "
                 "successful logins, unique IPs and users, sudo commands, account "
-                "changes, time range and most targeted users. Call this first to "
-                "get the big picture."
+                "changes, time range, and the top 5 usernames by failed attempts "
+                "(top_usernames_by_failures). Use it for questions about totals "
+                "or about which usernames/accounts are attacked the most."
             ),
             "parameters": {"type": "object", "properties": {}},
         },

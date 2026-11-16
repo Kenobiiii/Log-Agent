@@ -16,7 +16,7 @@ The model never reads the raw log. Python tools parse it and compute exact figur
 
 | Tool | Description |
 |---|---|
-| `log_summary` | Overview: line count, failed/successful logins, unique IPs and users, sudo commands, time range, most targeted users |
+| `log_summary` | Overview: line count, failed/successful logins, unique IPs and users, sudo commands, time range, top 5 usernames by failed attempts |
 | `top_failed_ips` | Ranking of IPs by failed login attempts |
 | `users_by_ip` | Usernames tried from an IP, and whether they exist on the system |
 | `successful_logins_by_ip` | Successful logins from an IP and how many failures preceded each one |
@@ -163,7 +163,7 @@ El modelo nunca lee el log en bruto. Las herramientas en Python lo parsean y cal
 
 | Herramienta | Descripción |
 |---|---|
-| `log_summary` | Visión general: líneas, logins fallidos y exitosos, IPs y usuarios únicos, comandos sudo, rango de fechas, usuarios más atacados |
+| `log_summary` | Visión general: líneas, logins fallidos y exitosos, IPs y usuarios únicos, comandos sudo, rango de fechas, los 5 usuarios con más intentos fallidos |
 | `top_failed_ips` | Ranking de IPs por intentos de login fallidos |
 | `users_by_ip` | Usuarios probados desde una IP y si existen en el sistema |
 | `successful_logins_by_ip` | Logins exitosos desde una IP y cuántos fallos hubo antes de cada uno |

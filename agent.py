@@ -26,7 +26,7 @@ How to work:
   counting list items yourself.
 - Never repeat a tool call with the same arguments; reuse the earlier result.
 - Call log_summary only when the question needs overall figures (totals, time
-  range, most targeted users), not as a routine first step.
+  range, top usernames by failed attempts), not as a routine first step.
 - If a follow-up would add value (e.g. checking what an IP did after logging in),
   offer it in one line at the end instead of doing it.
 
