@@ -13,6 +13,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [003](003-fix-ub-09-invalid-ip.md) | 2026-11-12 | Fix: UB-09 daba FAIL con una respuesta correcta |
 | [004](004-eval-scores-and-comparison.md) | 2026-11-16 | Puntuación de los evals, historial y comparación entre ejecuciones |
 | [005](005-fix-diagnosis-truncation.md) | 2026-11-16 | Fix: el diagnóstico culpaba a la tool de un recorte que hacía el propio eval |
+| [006](006-rename-users-tried.md) | 2026-11-16 | Renombrar `users_tried` a `users_tried_before_success` (SAF-12) |
 
 ## Plantilla
 

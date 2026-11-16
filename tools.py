@@ -263,7 +263,7 @@ def success_after_failures(path: str, min_failures: int = 3) -> dict:
                 "ip": ip,
                 "internal": _is_internal(ip),
                 "failures_before_success": failures[ip],
-                "users_tried": len(tried_users[ip]),
+                "users_tried_before_success": len(tried_users[ip]),
                 "first_login": e["ts"].isoformat(),
                 "user": e["user"],
                 "method": e["method"],
@@ -424,7 +424,9 @@ TOOLS = [
             "description": (
                 "Find IPs that had several failed attempts and THEN logged in "
                 "successfully, a sign of a compromised account. Catches attacks "
-                "that don't show up in the top failed IPs due to low volume."
+                "that don't show up in the top failed IPs due to low volume. "
+                "Failures and usernames are counted only up to the first "
+                "successful login of each IP."
             ),
             "parameters": {
                 "type": "object",
