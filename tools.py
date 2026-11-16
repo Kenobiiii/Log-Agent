@@ -17,14 +17,18 @@ HEADER_RE = re.compile(
     r"^(?P<month>\w{3})\s+(?P<day>\d{1,2}) (?P<time>\d{2}:\d{2}:\d{2}) "
     r"(?P<host>\S+) (?P<process>[\w.-]+)(?:\[(?P<pid>\d+)\])?: (?P<msg>.*)$"
 )
+# Authentication methods as sshd writes them -> name used in events.
+AUTH_METHODS = {"password": "password", "publickey": "publickey", "keyboard-interactive/pam": "keyboard-interactive"}
+_METHOD = "|".join(re.escape(m) for m in AUTH_METHODS)
+_IP = r"(?P<ip>[0-9A-Fa-f:.]+)"  # IPv4 or IPv6, validated with ipaddress afterwards
+
 FAILED_RE = re.compile(
-    r"^Failed password for (?P<invalid>invalid user )?(?P<user>\S+) "
-    r"from (?P<ip>[\d.]+) port \d+"
+    rf"^Failed (?P<method>{_METHOD}) for (?P<invalid>invalid user )?(?P<user>\S+) from {_IP} port \d+"
 )
-ACCEPTED_RE = re.compile(
-    r"^Accepted (?P<method>password|publickey) for (?P<user>\S+) "
-    r"from (?P<ip>[\d.]+) port \d+"
-)
+ACCEPTED_RE = re.compile(rf"^Accepted (?P<method>{_METHOD}) for (?P<user>\S+) from {_IP} port \d+")
+# rsyslog collapses identical consecutive lines: the first one is logged as is,
+# then "message repeated N times: [ <same message>]" stands for N more.
+REPEATED_RE = re.compile(r"^message repeated (?P<times>\d+) times: \[\s*(?P<msg>.*?)\s*\]$")
 SESSION_CLOSED_RE = re.compile(r"^pam_unix\(sshd:session\): session closed for user (?P<user>\S+)")
 SUDO_RE = re.compile(
     r"^\s*(?P<user>\S+) : (?:(?P<error>[^;]+?) ; )?TTY=\S+ ; PWD=(?P<pwd>\S+) ; "
@@ -64,15 +68,19 @@ def _parse_log_cached(path: str, mtime: float, year: int) -> ParsedLog:
             process, pid, msg = header["process"], header["pid"], header["msg"]
 
             if process == "sshd":
-                if m := FAILED_RE.match(msg):
-                    events.append({
+                times = 1
+                if r := REPEATED_RE.match(msg):
+                    times, msg = int(r["times"]), r["msg"]
+
+                if (m := FAILED_RE.match(msg)) and _is_ip(m["ip"]):
+                    events.extend({
                         "ts": ts, "kind": "failed", "user": m["user"], "ip": m["ip"],
-                        "method": "password", "invalid_user": m["invalid"] is not None,
-                    })
-                elif m := ACCEPTED_RE.match(msg):
+                        "method": AUTH_METHODS[m["method"]], "invalid_user": m["invalid"] is not None,
+                    } for _ in range(times))
+                elif (m := ACCEPTED_RE.match(msg)) and _is_ip(m["ip"]) and times == 1:
                     events.append({
                         "ts": ts, "kind": "accepted", "user": m["user"], "ip": m["ip"],
-                        "method": m["method"], "invalid_user": False,
+                        "method": AUTH_METHODS[m["method"]], "invalid_user": False,
                     })
                     session = {"user": m["user"], "ip": m["ip"], "start": ts, "end": None}
                     sessions.append(session)
@@ -99,6 +107,14 @@ def parse_log(path: str, year: int | None = None) -> ParsedLog:
     """Parse the log file. Results are cached until the file changes."""
     year = year or datetime.now().year
     return _parse_log_cached(os.path.abspath(path), os.path.getmtime(path), year)
+
+
+def _is_ip(text: str) -> bool:
+    try:
+        ipaddress.ip_address(text)
+        return True
+    except ValueError:
+        return False
 
 
 def _is_internal(ip: str) -> bool:
@@ -201,10 +217,11 @@ def top_failed_ips(path: str, n: int = 5) -> dict:
 
 
 def _group_by_subnet(ip_counts: list[tuple[str, int]]) -> list[dict]:
-    """/24 subnets with 2+ IPs among the given (ip, failures) pairs."""
+    """Subnets (/24 for IPv4, /64 for IPv6) with 2+ IPs among the given (ip, failures) pairs."""
     groups = defaultdict(lambda: {"ips": 0, "failures": 0})
     for ip, count in ip_counts:
-        subnet = str(ipaddress.ip_network(f"{ip}/24", strict=False))
+        prefix = 24 if ipaddress.ip_address(ip).version == 4 else 64
+        subnet = str(ipaddress.ip_network(f"{ip}/{prefix}", strict=False))
         groups[subnet]["ips"] += 1
         groups[subnet]["failures"] += count
     return sorted(
@@ -453,7 +470,7 @@ TOOL_FUNCTIONS = {
 _IP_PARAMS = {
     "type": "object",
     "properties": {
-        "ip": {"type": "string", "description": "IPv4 address, e.g. 203.0.113.77"}
+        "ip": {"type": "string", "description": "IPv4 or IPv6 address, e.g. 203.0.113.77 or 2001:db8::17"}
     },
     "required": ["ip"],
 }
