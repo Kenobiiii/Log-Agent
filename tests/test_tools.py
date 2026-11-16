@@ -185,3 +185,17 @@ def test_every_schema_has_a_function():
     names = [t["function"]["name"] for t in TOOLS]
     assert sorted(names) == sorted(TOOL_FUNCTIONS)
     assert not any("path" in t["function"]["parameters"].get("properties", {}) for t in TOOLS)
+
+
+def test_tools_work_with_ipv6(write_log):
+    path = write_log(
+        "Dec  1 22:10:00 srv sshd[1]: Failed password for root from 2001:db8::17 port 4242 ssh2\n"
+        "Dec  1 22:10:12 srv sshd[1]: message repeated 4 times: [ Failed password for root from 2001:db8::17 port 4242 ssh2]\n"
+        "Dec  1 22:11:00 srv sshd[2]: Failed password for root from 2001:db8::18 port 4243 ssh2\n"
+        "Dec  1 22:12:00 srv sshd[3]: Failed password for root from 1.2.3.4 port 1 ssh2\n")
+    top = top_failed_ips(path, n=5)
+    assert top["top"][0] == {"ip": "2001:db8::17", "failures": 5, "distinct_users": 1,
+                             "successful_logins": 0, "internal": False}
+    assert top["subnets_in_top"] == [{"subnet": "2001:db8::/64", "ips": 2, "failures": 6}]
+    assert users_by_ip(path, "2001:db8::17")["users"][0]["failures"] == 5
+    assert log_summary(path)["failed_attempts"] == 7
