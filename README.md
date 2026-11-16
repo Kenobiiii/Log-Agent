@@ -34,6 +34,7 @@ log-agent/
 ├── tools.py          # Log parser, analysis tools and their JSON schemas
 ├── evals/
 │   └── run_evals.py  # 105 test cases, path analysis and LLM diagnosis
+├── tests/            # Unit tests for the parser, tools and eval checks (pytest)
 ├── dev_log/          # One entry per significant change: problem, fix, reasoning
 ├── samples/
 │   └── auth.log      # Synthetic 3-day log to try the agent
@@ -115,6 +116,17 @@ It also works on a real server log, for example `/var/log/auth.log`.
 
 The agent replies in the language of the question.
 
+### Unit tests
+
+The parser, the tools and the evals' answer checks have unit tests. They run in under a second, need no API key and don't call the LLM:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+Run them after any change to `tools.py` or the eval checks. Evals measure the agent; unit tests make sure the data it receives is right.
+
 ### Evaluations
 
 `evals/run_evals.py` runs 105 realistic analyst tasks (15 per tool) against the sample log and checks the answers against known ground truth. It also analyzes the path the agent took: which tools it used, repeated calls, errors, loops and wasted steps.
@@ -182,6 +194,7 @@ log-agent/
 ├── tools.py          # Parser del log, herramientas de análisis y sus esquemas JSON
 ├── evals/
 │   └── run_evals.py  # 105 casos de prueba, análisis del camino y diagnóstico con LLM
+├── tests/            # Tests unitarios del parser, las tools y los checks de los evals (pytest)
 ├── dev_log/          # Una entrada por cambio importante: problema, arreglo, razonamiento
 ├── samples/
 │   └── auth.log      # Log sintético de 3 días para probar el agente
@@ -262,6 +275,17 @@ También funciona con el log de un servidor real, por ejemplo `/var/log/auth.log
 | `-m`, `--model` | Nombre del modelo (por defecto `deepseek-chat`, o la variable `DEEPSEEK_MODEL`) |
 
 El agente responde en el idioma de la pregunta.
+
+### Tests unitarios
+
+El parser, las herramientas y los checks de los evals tienen tests unitarios. Tardan menos de un segundo, no necesitan API key y no llaman al LLM:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+Ejecútalos después de cualquier cambio en `tools.py` o en los checks de los evals. Los evals miden al agente; los tests unitarios comprueban que los datos que recibe son correctos.
 
 ### Evaluaciones
 
