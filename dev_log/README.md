@@ -16,6 +16,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [006](006-rename-users-tried.md) | 2026-11-16 | Renombrar `users_tried` a `users_tried_before_success` (SAF-12) |
 | [007](007-subnet-breakdown.md) | 2026-11-16 | `top_failed_ips` agrupa las IPs por subred (TF-06) |
 | [008](008-fix-no-check.md) | 2026-11-16 | Fix: el check de "no" rechazaba respuestas correctas (TF-03) |
+| [009](009-system-prompt-rewrite.md) | 2026-11-16 | Reescritura del system prompt: 79,7 % → 94,7 %, la mitad de llamadas |
 
 ## Plantilla
 

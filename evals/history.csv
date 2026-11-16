@@ -2,3 +2,7 @@ run,label,git_commit,git_dirty,model,prompt_hash,tools_hash,evals_hash,cases,sco
 20261116-182804,baseline,825faae,True,deepseek-chat,b4f553da,ce40240c,5aefb29e,90,79.4,55,33,2,0,0,3.63,5627,4.97
 20261116-183920,rename users_tried -> users_tried_before_success,34c0beb,True,deepseek-chat,b4f553da,8bc73898,5aefb29e,15,63.3,4,11,0,0,0,5.87,8390,6.79
 20261116-184109,top_failed_ips: subnets_in_top,ef764a0,True,deepseek-chat,b4f553da,936980b2,5aefb29e,15,70.0,7,7,1,0,0,3.4,5560,4.81
+20261116-184553,old prompt (run 1),dac06c4,False,deepseek-chat,b4f553da,936980b2,0e503a2b,90,79.4,53,37,0,0,0,3.66,5812,4.92
+20261116-184658,old prompt (run 2),dac06c4,False,deepseek-chat,b4f553da,936980b2,0e503a2b,90,80.0,56,32,2,0,0,3.53,5773,4.9
+20261116-184820,new prompt (run 1),dac06c4,True,deepseek-chat,80d24c7f,936980b2,0e503a2b,90,95.0,82,7,1,0,0,1.8,4279,3.38
+20261116-184929,new prompt (run 2),dac06c4,True,deepseek-chat,80d24c7f,936980b2,0e503a2b,90,94.4,81,8,1,0,0,1.67,4043,3.19
