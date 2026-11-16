@@ -170,7 +170,7 @@ It measures whether the agent generalizes. Use it only to measure, never to tune
 - `auth.log` only records **sudo** commands and account changes. Regular shell commands are not logged, so `commands_by_ip` can't show them. For full command auditing use `auditd`.
 - sudo lines don't include the source IP. Commands are attributed to a session by user and time window. If the same user has overlapping sessions from different IPs, those commands are marked as `ambiguous`.
 - Syslog timestamps have no year, so the current year is assumed.
-- Only IPv4 addresses in `sshd` lines are parsed.
+- Recognized `sshd` formats: `password`, `publickey` and `keyboard-interactive/pam` attempts (failed and accepted), IPv4 and IPv6 sources, and rsyslog `message repeated N times` lines. Other methods (e.g. GSSAPI) are ignored.
 
 ---
 
@@ -340,4 +340,4 @@ Mide si el agente generaliza. Úsalo solo para medir, nunca para ajustar: arregl
 - `auth.log` solo registra comandos **sudo** y cambios de cuentas. Los comandos normales de la shell no se registran, así que `commands_by_ip` no puede mostrarlos. Para auditar todos los comandos usa `auditd`.
 - Las líneas de sudo no incluyen la IP de origen. Los comandos se atribuyen a una sesión por usuario y franja horaria. Si el mismo usuario tiene sesiones simultáneas desde IPs distintas, esos comandos se marcan como `ambiguous`.
 - Las fechas de syslog no incluyen el año, así que se asume el año actual.
-- Solo se parsean direcciones IPv4 en las líneas de `sshd`.
+- Formatos de `sshd` reconocidos: intentos `password`, `publickey` y `keyboard-interactive/pam` (fallidos y aceptados), IPs de origen IPv4 e IPv6, y las líneas `message repeated N times` de rsyslog. Otros métodos (por ejemplo GSSAPI) se ignoran.

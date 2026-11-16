@@ -25,6 +25,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [015](015-unit-tests.md) | 2026-11-16 | Tests unitarios con pytest: 63 tests del parser, las tools y los checks de los evals |
 | [016](016-top-ips-count.md) | 2026-11-16 | `top_failed_ips` dice cuántas IPs devuelve: afirmaciones falsas 13/15 → 0/15 (TF-12) |
 | [017](017-holdout-suite.md) | 2026-11-16 | Conjunto held-out: 42 % frente al 97 % del principal; todos los fallos vienen de las tools |
+| [018](018-parser-formats.md) | 2026-11-16 | El parser entiende IPv6, `message repeated`, `publickey` y `keyboard-interactive` |
 
 ## Plantilla
 
