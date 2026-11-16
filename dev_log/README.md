@@ -15,6 +15,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [005](005-fix-diagnosis-truncation.md) | 2026-11-16 | Fix: el diagnóstico culpaba a la tool de un recorte que hacía el propio eval |
 | [006](006-rename-users-tried.md) | 2026-11-16 | Renombrar `users_tried` a `users_tried_before_success` (SAF-12) |
 | [007](007-subnet-breakdown.md) | 2026-11-16 | `top_failed_ips` agrupa las IPs por subred (TF-06) |
+| [008](008-fix-no-check.md) | 2026-11-16 | Fix: el check de "no" rechazaba respuestas correctas (TF-03) |
 
 ## Plantilla
 

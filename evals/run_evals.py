@@ -94,7 +94,8 @@ class Case:
 LS, TF, UB = "log_summary", "top_failed_ips", "users_by_ip"
 SL, SAF, CMD = "successful_logins_by_ip", "success_after_failures", "commands_by_ip"
 
-NO = ["no ", "never", "nunca", "none", "ninguna", "ninguno", "did not", "didn't", "not "]
+NO = ["no ", "no.", "no,", "no!", "no:", "no*", "no—", "no –", "never", "nunca", "none", "ninguna", "ninguno",
+      "did not", "didn't", "not "]
 NOT_FOUND = ["not found", "no aparece", "not appear", "doesn't appear", "does not appear",
              "no se encontr", "no hay", "no existe", "isn't in", "is not in", "no figura"]
 DENIED = ["not in sudoers", "denied", "denegad", "rechaz", "failed", "falló", "no tenía permiso", "sin permiso"]
@@ -141,7 +142,7 @@ CASES = [
          "firewall blocklist.", [[TF]], 1,
          contains=["185.220.101.47", "45.142.212.100", "91.240.118.52"], numbers=[1850, 900, 119]),
     Case("TF-03", TF, "Of the 10 IPs with the most failed logins, is any of them part of our internal network?",
-         [[TF]], 1, any_of=[NO]),
+         [[TF]], 1, any_of=[NO + ["external", "extern"]]),
     Case("TF-04", TF, "Hay una IP en el top de fallos que prueba muchos nombres de usuario distintos pero nunca "
          "consigue entrar. ¿Cuál es y cuántos usuarios distintos prueba?",
          [[TF]], 1, contains=["45.142.212.100"], numbers=[30]),
