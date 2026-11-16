@@ -12,6 +12,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [002](002-eval-diagnosis.md) | 2026-11-12 | Diagnóstico automático de los casos que fallan |
 | [003](003-fix-ub-09-invalid-ip.md) | 2026-11-12 | Fix: UB-09 daba FAIL con una respuesta correcta |
 | [004](004-eval-scores-and-comparison.md) | 2026-11-16 | Puntuación de los evals, historial y comparación entre ejecuciones |
+| [005](005-fix-diagnosis-truncation.md) | 2026-11-16 | Fix: el diagnóstico culpaba a la tool de un recorte que hacía el propio eval |
 
 ## Plantilla
 

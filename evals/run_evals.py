@@ -68,8 +68,9 @@ CALL_SLACK = 2
 # Same tool with the same arguments this many times = the agent is looping.
 LOOP_THRESHOLD = 3
 API_RETRIES = 2
-# Truncation of tool results and answers sent to the diagnosis model.
-DIAG_RESULT_CHARS = 1200
+# Truncation of tool results and answers sent to the diagnosis model. The
+# diagnosis is told when a result was cut, so it never blames the agent for it.
+DIAG_RESULT_CHARS = 4000
 DIAG_ANSWER_CHARS = 4000
 
 
@@ -458,12 +459,26 @@ Categories:
 
 Rules:
 - Base every claim on the run data. Quote the instruction, description or result that matters.
+- Some tool results are cut ONLY for this review (truncated_for_review: true). The agent always
+  received the full result (result_chars characters). Never conclude that the agent lacked data,
+  or that a tool truncated its output, because of this cut.
 - The fix must be actionable: say which file and element to change and propose the new wording or code idea.
 - If the answer is correct and the extra calls were reasonable, say so and use eval_case.
 - Write all text fields in {language}.
 
 Return only JSON:
 {{"category": "...", "root_cause": "...", "evidence": "...", "fix": "...", "where": "...", "confidence": "high|medium|low"}}"""
+
+
+def _review_result(call: dict) -> dict:
+    """Tool result as shown to the diagnosis model, flagging any truncation."""
+    full_size = call.get("result_chars", 0)
+    shown = call.get("result", "")[:DIAG_RESULT_CHARS]
+    return {
+        "result": shown,
+        "result_chars": full_size,
+        "truncated_for_review": len(shown) < full_size,
+    }
 
 
 def diagnose(case: Case, result: dict, model: str, language: str) -> dict:
@@ -479,7 +494,7 @@ def diagnose(case: Case, result: dict, model: str, language: str) -> dict:
                 "name": c["name"],
                 "arguments": c["arguments"],
                 "error": c["error"],
-                "result": c.get("result", "")[:DIAG_RESULT_CHARS],
+                **_review_result(c),
             }
             for c in result["trace"]["tool_calls"]
         ],

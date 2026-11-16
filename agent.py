@@ -13,7 +13,7 @@ from tools import TOOLS, run_tool
 
 DEFAULT_MODEL = "deepseek-chat"
 MAX_STEPS = 10
-TRACE_RESULT_CHARS = 3000
+TRACE_RESULT_CHARS = 20000
 
 SYSTEM_PROMPT = """You are a security analyst reviewing an SSH authentication log.
 
