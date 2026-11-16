@@ -11,6 +11,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [001](001-evals.md) | 2026-11-12 | Sistema de evals: 90 casos y análisis del camino del agente |
 | [002](002-eval-diagnosis.md) | 2026-11-12 | Diagnóstico automático de los casos que fallan |
 | [003](003-fix-ub-09-invalid-ip.md) | 2026-11-12 | Fix: UB-09 daba FAIL con una respuesta correcta |
+| [004](004-eval-scores-and-comparison.md) | 2026-11-16 | Puntuación de los evals, historial y comparación entre ejecuciones |
 
 ## Plantilla
 

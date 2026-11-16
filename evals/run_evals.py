@@ -11,12 +11,19 @@ Usage (from the project root):
     python evals/run_evals.py --per-tool 2 --workers 6
 
     python evals/run_evals.py --no-diagnose        # skip the LLM diagnosis
+    python evals/run_evals.py --label "stricter system prompt"
 
 Each run writes to evals/results/<timestamp>/:
     results.jsonl   one line per case: answer, checks, full tool trace, tokens,
                     hints and diagnosis
-    report.md       summary per tool, suggested fixes by category, failures,
-                    inefficient paths, tool usage
+    summary.json    score and metrics per case and in total, plus what was run
+                    (git commit, system prompt and tools hashes, model)
+    report.md       score, comparison with the previous run, summary per tool,
+                    suggested fixes by category, failures, tool usage
+and appends one row to evals/history.csv.
+
+Comparison: each run is compared with the latest earlier run that shares cases
+(or --baseline), using only the common cases. Score = PASS 1, WARN 0.5, rest 0.
 
 Non-passing cases get two kinds of feedback:
     hints       deterministic rules that point to the likely culprit
@@ -25,13 +32,16 @@ Non-passing cases get two kinds of feedback:
 """
 
 import argparse
+import csv
+import hashlib
 import json
 import re
+import subprocess
 import sys
 import time
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -48,6 +58,10 @@ from tools import TOOLS  # noqa: E402
 
 DEFAULT_LOG = ROOT / "samples" / "auth.log"
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
+HISTORY_FILE = Path(__file__).resolve().parent / "history.csv"
+
+# Points per case. The run score is the average, as a percentage.
+STATUS_SCORE = {"PASS": 1.0, "WARN": 0.5, "FAIL": 0.0, "STUCK": 0.0, "ERROR": 0.0}
 
 # Extra tool calls allowed over the optimal path before flagging it.
 CALL_SLACK = 2
@@ -73,6 +87,7 @@ class Case:
     contains: list = field(default_factory=list)   # substrings that must appear
     numbers: list = field(default_factory=list)    # numbers that must appear
     any_of: list = field(default_factory=list)     # groups: at least one per group
+    expect_tool_error: bool = False                # a tool error is the correct outcome (bad input)
 
 
 LS, TF, UB = "log_summary", "top_failed_ips", "users_by_ip"
@@ -166,8 +181,9 @@ CASES = [
          contains=["psanchez"], numbers=[9]),
     Case("UB-07", UB, "Was 'oracle' tried from 45.142.212.100? How many times, and does that account exist here?",
          [[UB]], 1, contains=["oracle"], numbers=[22]),
-    Case("UB-08", UB, "For the IP 8.8.8.8, which users were attempted?", [[UB, SL, CMD]], 1, any_of=[NOT_FOUND]),
-    Case("UB-09", UB, "Which usernames were tried from 999.1.1.1?", [], 0,
+    Case("UB-08", UB, "For the IP 8.8.8.8, which users were attempted?", [[UB, SL, CMD]], 1, any_of=[NOT_FOUND],
+         expect_tool_error=True),
+    Case("UB-09", UB, "Which usernames were tried from 999.1.1.1?", [], 1, expect_tool_error=True,
          any_of=[["invalid", "inválid", "válid", "not a valid", "isn't a valid", "not valid",
                   "out of range", "fuera de rango"]]),
     Case("UB-10", UB, "From 194.26.29.117, which accounts were targeted and how many times each?", [[UB]], 1,
@@ -213,7 +229,8 @@ CASES = [
          [[SL, SAF]], 1, contains=["password"]),
     Case("SL-14", SL, "From 10.20.0.15, who logged in and how many times?", [[SL]], 1,
          contains=["backup"], numbers=[3]),
-    Case("SL-15", SL, "Did anyone log in from 8.8.8.8?", [[SL, UB, CMD]], 1, any_of=[NOT_FOUND + NO]),
+    Case("SL-15", SL, "Did anyone log in from 8.8.8.8?", [[SL, UB, CMD]], 1, any_of=[NOT_FOUND + NO],
+         expect_tool_error=True),
 
     # --- success_after_failures ----------------------------------------------
     Case("SAF-01", SAF, "Did any IP log in successfully after a series of failed attempts? List them.", [[SAF]], 1,
@@ -353,7 +370,7 @@ def analyze_path(case: Case, trace: dict) -> dict:
     }
 
 
-def classify(result: dict) -> tuple[str, list[str]]:
+def classify(result: dict, case: Case) -> tuple[str, list[str]]:
     """Return (status, reasons). Status: ERROR, STUCK, FAIL, WARN or PASS."""
     if result.get("exception"):
         return "ERROR", [result["exception"]]
@@ -379,7 +396,7 @@ def classify(result: dict) -> tuple[str, list[str]]:
         reasons.append(f"duplicate calls: {'; '.join(path['duplicate_calls'])}")
     if path["over_budget"]:
         reasons.append(f"{path['tool_call_count']} tool calls, optimal ~{path['optimal_calls']}")
-    if path["tool_errors"]:
+    if path["tool_errors"] and not case.expect_tool_error:
         reasons.append(f"tool errors: {'; '.join(path['tool_errors'])}")
     return ("WARN" if reasons else "PASS"), reasons
 
@@ -525,7 +542,7 @@ def run_case(case: Case, log_path: str, model: str, diagnose_with: str | None = 
     else:
         result.update({"exception": last_error, "attempts": API_RETRIES + 1})
 
-    result["status"], result["reasons"] = classify(result)
+    result["status"], result["reasons"] = classify(result, case)
 
     if result["status"] != "PASS":
         result["hints"] = rule_hints(case, result)
@@ -562,7 +579,205 @@ def select_cases(args) -> list[Case]:
 STATUS_ORDER = ["PASS", "WARN", "FAIL", "STUCK", "ERROR"]
 
 
-def write_report(results: list[dict], out_dir: Path, meta: dict) -> Path:
+# =============================================================================
+# Scoring, history and comparison between runs
+# =============================================================================
+
+def _short_hash(obj) -> str:
+    data = obj if isinstance(obj, str) else json.dumps(obj, sort_keys=True)
+    return hashlib.sha256(data.encode()).hexdigest()[:8]
+
+
+def _git_info() -> dict:
+    def git(*args):
+        try:
+            return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True,
+                                  timeout=5).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            return ""
+    dirty = [l for l in git("status", "--porcelain").splitlines() if "evals/results/" not in l
+             and not l.endswith("evals/history.csv")]
+    return {"git_commit": git("rev-parse", "--short", "HEAD") or "unknown", "git_dirty": bool(dirty)}
+
+
+def case_record(r: dict) -> dict:
+    record = {"status": r["status"], "score": STATUS_SCORE[r["status"]]}
+    if "trace" in r:
+        record.update({
+            "tool_calls": r["path"]["tool_call_count"],
+            "tokens": r["trace"]["prompt_tokens"] + r["trace"]["completion_tokens"],
+            "seconds": r["seconds"],
+        })
+    return record
+
+
+def aggregate(cases: dict) -> dict:
+    """Metrics for a {case_id: record} dict."""
+    n = len(cases)
+    statuses = Counter(c["status"] for c in cases.values())
+    measured = [c for c in cases.values() if "tool_calls" in c]
+    avg = lambda key: round(sum(c[key] for c in measured) / len(measured), 2) if measured else 0  # noqa: E731
+    return {
+        "cases": n,
+        "score": round(100 * sum(c["score"] for c in cases.values()) / n, 1) if n else 0.0,
+        **{s.lower(): statuses.get(s, 0) for s in STATUS_ORDER},
+        "avg_tool_calls": avg("tool_calls"),
+        "avg_tokens": int(avg("tokens")),
+        "avg_seconds": avg("seconds"),
+    }
+
+
+def build_summary(results: list[dict], meta: dict) -> dict:
+    cases = {r["id"]: case_record(r) for r in results}
+    return {"meta": meta, "totals": aggregate(cases), "cases": cases}
+
+
+def load_summary(run_dir: Path) -> dict | None:
+    """Load a run's summary. Older runs without summary.json are rebuilt from results.jsonl."""
+    summary_path = run_dir / "summary.json"
+    if summary_path.exists():
+        return json.loads(summary_path.read_text(encoding="utf-8"))
+    jsonl = run_dir / "results.jsonl"
+    if not jsonl.exists():
+        return None
+    results = [json.loads(line) for line in jsonl.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return build_summary(results, {"run": run_dir.name, "label": "", "git_commit": "unknown",
+                                   "prompt_hash": "unknown", "tools_hash": "unknown",
+                                   "evals_hash": "unknown"})
+
+
+def find_baseline(current_dir: Path, case_ids: set, explicit: str | None) -> tuple[Path, dict] | None:
+    """The run to compare against: --baseline if given, else the latest earlier run sharing cases."""
+    if explicit:
+        path = Path(explicit) if Path(explicit).is_dir() else RESULTS_DIR / explicit
+        summary = load_summary(path)
+        return (path, summary) if summary else None
+
+    for run_dir in sorted((d for d in RESULTS_DIR.iterdir() if d.is_dir()), reverse=True):
+        if run_dir == current_dir or run_dir.name > current_dir.name:
+            continue
+        summary = load_summary(run_dir)
+        if summary and case_ids & summary["cases"].keys():
+            return run_dir, summary
+    return None
+
+
+def compare(current: dict, baseline: dict) -> dict:
+    common = sorted(current["cases"].keys() & baseline["cases"].keys())
+    before = aggregate({c: baseline["cases"][c] for c in common})
+    after = aggregate({c: current["cases"][c] for c in common})
+
+    improved, regressed, fewer_calls, more_calls = [], [], [], []
+    for cid in common:
+        b, a = baseline["cases"][cid], current["cases"][cid]
+        change = f"{cid}: {b['status']} → {a['status']}"
+        if a["score"] > b["score"]:
+            improved.append(change)
+        elif a["score"] < b["score"]:
+            regressed.append(change)
+        elif "tool_calls" in a and "tool_calls" in b and a["tool_calls"] != b["tool_calls"]:
+            target = fewer_calls if a["tool_calls"] < b["tool_calls"] else more_calls
+            target.append(f"{cid}: {b['tool_calls']} → {a['tool_calls']} calls ({a['status']})")
+
+    bm, cm = baseline["meta"], current["meta"]
+
+    def differs(key):  # None = can't tell (older run without this info)
+        if bm.get(key, "unknown") == "unknown" or cm.get(key, "unknown") == "unknown":
+            return None
+        return bm[key] != cm[key]
+
+    return {
+        "baseline_run": bm.get("run"),
+        "baseline_label": bm.get("label", ""),
+        "common_cases": len(common),
+        "before": before,
+        "after": after,
+        "improved": improved,
+        "regressed": regressed,
+        "fewer_calls": fewer_calls,
+        "more_calls": more_calls,
+        "changed": {
+            "system_prompt": differs("prompt_hash"),
+            "tools": differs("tools_hash"),
+            "model": differs("model"),
+            "evals": differs("evals_hash"),
+            "commit": f"{bm.get('git_commit')} → {cm.get('git_commit')}",
+        },
+    }
+
+
+def verdict(cmp: dict) -> str:
+    delta = cmp["after"]["score"] - cmp["before"]["score"]
+    n_changed = len(cmp["improved"]) + len(cmp["regressed"])
+    if n_changed == 0:
+        return "No status changes: same result as the baseline."
+    if cmp["improved"] and cmp["regressed"]:
+        return (f"Mixed: {len(cmp['improved'])} improved, {len(cmp['regressed'])} regressed "
+                f"(score {delta:+.1f}). Check the regressions before keeping the change.")
+    if n_changed <= 2:
+        return (f"Score {delta:+.1f} from only {n_changed} case(s): could be LLM randomness. "
+                "Re-run the affected cases before concluding.")
+    return f"{'Improvement' if delta > 0 else 'Regression'}: score {delta:+.1f} across {n_changed} cases."
+
+
+def append_history(summary: dict) -> None:
+    meta, totals = summary["meta"], summary["totals"]
+    row = {
+        "run": meta["run"], "label": meta.get("label", ""), "git_commit": meta["git_commit"],
+        "git_dirty": meta["git_dirty"], "model": meta["model"], "prompt_hash": meta["prompt_hash"],
+        "tools_hash": meta["tools_hash"], "evals_hash": meta["evals_hash"], **totals,
+    }
+    new_file = not HISTORY_FILE.exists()
+    with open(HISTORY_FILE, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=list(row))
+        if new_file:
+            writer.writeheader()
+        writer.writerow(row)
+
+
+def comparison_lines(cmp: dict | None) -> list[str]:
+    if not cmp:
+        return ["## Comparison with previous run", "", "No previous run with overlapping cases.", ""]
+
+    b, a = cmp["before"], cmp["after"]
+    label = f" ({cmp['baseline_label']})" if cmp["baseline_label"] else ""
+    ch = cmp["changed"]
+    names = ("system_prompt", "tools", "model", "evals")
+    changed = [n for n in names if ch[n]]
+    unknown = [n for n in names if ch[n] is None]
+    changed_str = ", ".join(changed) or ("unknown" if unknown else "nothing tracked")
+    if changed and unknown:
+        changed_str += f" (unknown: {', '.join(unknown)})"
+    lines = [
+        "## Comparison with previous run",
+        "",
+        f"Baseline: `{cmp['baseline_run']}`{label} · {cmp['common_cases']} common cases · "
+        f"commit {ch['commit']} · changed: {changed_str}",
+        "",
+        *(["> ⚠️ The eval cases or scoring changed since the baseline, so scores are not directly comparable.", ""]
+          if ch["evals"] else []),
+        f"**{verdict(cmp)}**",
+        "",
+        "| Metric | Before | After | Δ |",
+        "|---|---|---|---|",
+    ]
+    for key, name in [("score", "Score (%)"), ("pass", "PASS"), ("warn", "WARN"), ("fail", "FAIL"),
+                      ("stuck", "STUCK"), ("error", "ERROR"), ("avg_tool_calls", "Avg tool calls"),
+                      ("avg_tokens", "Avg tokens"), ("avg_seconds", "Avg seconds")]:
+        delta = a[key] - b[key]
+        delta_str = f"{delta:+.2f}".rstrip("0").rstrip(".") if isinstance(delta, float) else f"{delta:+d}"
+        lines.append(f"| {name} | {b[key]} | {a[key]} | {delta_str if delta else '='} |")
+    for title, items in [("Improved", cmp["improved"]), ("Regressed", cmp["regressed"]),
+                         ("Same status, fewer tool calls", cmp["fewer_calls"]),
+                         ("Same status, more tool calls", cmp["more_calls"])]:
+        if items:
+            lines += ["", f"**{title}:** " + " · ".join(items)]
+    lines.append("")
+    return lines
+
+
+def write_report(results: list[dict], out_dir: Path, meta: dict, summary: dict,
+                 comparison: dict | None) -> Path:
     results = sorted(results, key=lambda r: r["id"])
     by_status = Counter(r["status"] for r in results)
     ok = [r for r in results if "trace" in r]
@@ -572,9 +787,13 @@ def write_report(results: list[dict], out_dir: Path, meta: dict) -> Path:
     total_calls = sum(r["path"]["tool_call_count"] for r in ok)
 
     lines = [
-        f"# Eval report — {meta['started']}",
+        f"# Eval report — {meta['started']}" + (f" — {meta['label']}" if meta.get("label") else ""),
         "",
-        f"- Model: `{meta['model']}`",
+        f"**Score: {summary['totals']['score']}%** (PASS = 1, WARN = 0.5, others = 0)",
+        "",
+        f"- Model: `{meta['model']}` · commit `{meta['git_commit']}`"
+        + (" (uncommitted changes)" if meta["git_dirty"] else "")
+        + f" · prompt `{meta['prompt_hash']}` · tools `{meta['tools_hash']}` · evals `{meta['evals_hash']}`",
         f"- Log: `{meta['log']}`",
         f"- Cases: {len(results)} · Duration: {meta['duration']}s",
         f"- Tokens: {total_prompt:,} prompt + {total_completion:,} completion",
@@ -587,6 +806,7 @@ def write_report(results: list[dict], out_dir: Path, meta: dict) -> Path:
         "**PASS** correct and efficient · **WARN** correct but suboptimal path · "
         "**FAIL** wrong or incomplete answer · **STUCK** loop or step limit · **ERROR** API failure",
         "",
+        *comparison_lines(comparison),
         "## By tool",
         "",
         "| Tool | Cases | PASS | WARN | FAIL | STUCK | ERROR | Avg calls | Avg efficiency | Avg seconds |",
@@ -694,6 +914,10 @@ def main() -> None:
                         help="skip the LLM root-cause analysis of non-passing cases")
     parser.add_argument("--diagnose-model", default=DEFAULT_MODEL, help="model used for diagnosis")
     parser.add_argument("--lang", default="Spanish", help="language of the diagnosis text")
+    parser.add_argument("--label", help="short description of this run, e.g. 'stricter system prompt'")
+    parser.add_argument("--baseline", help="run to compare against (folder name in evals/results/); "
+                                           "default: latest earlier run sharing cases")
+    parser.add_argument("--no-compare", action="store_true", help="skip the comparison")
     args = parser.parse_args()
     diagnose_with = None if args.no_diagnose else args.diagnose_model
 
@@ -725,16 +949,37 @@ def main() -> None:
                 print(f"           [{d.get('category')}] {d['fix']}")
 
     meta = {
+        "run": out_dir.name,
+        "label": args.label or "",
         "started": started.strftime("%Y-%m-%d %H:%M:%S"),
         "model": args.model,
         "log": args.log,
         "duration": round((datetime.now() - started).total_seconds(), 1),
+        "prompt_hash": _short_hash(SYSTEM_PROMPT),
+        "tools_hash": _short_hash(TOOLS),
+        "evals_hash": _short_hash([[asdict(c) for c in CASES], STATUS_SCORE, CALL_SLACK, LOOP_THRESHOLD]),
+        **_git_info(),
     }
-    report = write_report(results, out_dir, meta)
+    summary = build_summary(results, meta)
+    (out_dir / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    summary = Counter(r["status"] for r in results)
-    print("\n" + " · ".join(f"{s}: {summary.get(s, 0)}" for s in STATUS_ORDER))
-    print(f"Report:  {report}\nDetails: {jsonl_path}")
+    baseline = None if args.no_compare else find_baseline(out_dir, set(summary["cases"]), args.baseline)
+    comparison = compare(summary, baseline[1]) if baseline else None
+    report = write_report(results, out_dir, meta, summary, comparison)
+    append_history(summary)
+
+    totals = summary["totals"]
+    print("\n" + " · ".join(f"{s}: {totals[s.lower()]}" for s in STATUS_ORDER) + f" · Score: {totals['score']}%")
+    if comparison:
+        delta = comparison["after"]["score"] - comparison["before"]["score"]
+        print(f"vs {comparison['baseline_run']} ({comparison['common_cases']} common cases): "
+              f"{comparison['before']['score']}% → {comparison['after']['score']}% ({delta:+.1f})")
+        print(f"  {verdict(comparison)}")
+        if comparison["changed"]["evals"]:
+            print("  Warning: eval cases or scoring changed since the baseline; scores are not directly comparable.")
+        for item in comparison["regressed"]:
+            print(f"  regressed: {item}")
+    print(f"Report:  {report}\nDetails: {jsonl_path}\nHistory: {HISTORY_FILE}")
 
 
 if __name__ == "__main__":

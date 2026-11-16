@@ -1,0 +1,2 @@
+run,label,git_commit,git_dirty,model,prompt_hash,tools_hash,evals_hash,cases,score,pass,warn,fail,stuck,error,avg_tool_calls,avg_tokens,avg_seconds
+20261116-182804,baseline,825faae,True,deepseek-chat,b4f553da,ce40240c,5aefb29e,90,79.4,55,33,2,0,0,3.63,5627,4.97

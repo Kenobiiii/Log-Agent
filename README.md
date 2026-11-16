@@ -124,7 +124,13 @@ python evals/run_evals.py --tool users_by_ip # one tool
 python evals/run_evals.py --case UB-09       # specific cases
 ```
 
-Each case ends as **PASS**, **WARN** (correct but inefficient), **FAIL**, **STUCK** or **ERROR**. For anything that isn't a PASS, a second LLM reviews the run and suggests the root cause and a fix. Results are written to `evals/results/<timestamp>/` (`report.md` and `results.jsonl`).
+Each case ends as **PASS**, **WARN** (correct but inefficient), **FAIL**, **STUCK** or **ERROR**. For anything that isn't a PASS, a second LLM reviews the run and suggests the root cause and a fix. Results are written to `evals/results/<timestamp>/` (`report.md`, `summary.json` and `results.jsonl`).
+
+Every run gets a score (PASS = 1, WARN = 0.5, rest = 0) and is compared with the previous run on the cases both share: which cases improved or regressed, and what changed in between (system prompt, tools, model or the evals themselves). Each run is also added to [`evals/history.csv`](evals/history.csv). Use `--label` to describe a run:
+
+```bash
+python evals/run_evals.py --label "stricter system prompt"
+```
 
 ### Development log
 
@@ -265,7 +271,13 @@ python evals/run_evals.py --tool users_by_ip # una herramienta
 python evals/run_evals.py --case UB-09       # casos concretos
 ```
 
-Cada caso termina como **PASS**, **WARN** (correcto pero ineficiente), **FAIL**, **STUCK** o **ERROR**. Para todo lo que no es PASS, un segundo LLM revisa la ejecución y propone la causa raíz y un arreglo. Los resultados se guardan en `evals/results/<fecha>/` (`report.md` y `results.jsonl`).
+Cada caso termina como **PASS**, **WARN** (correcto pero ineficiente), **FAIL**, **STUCK** o **ERROR**. Para todo lo que no es PASS, un segundo LLM revisa la ejecución y propone la causa raíz y un arreglo. Los resultados se guardan en `evals/results/<fecha>/` (`report.md`, `summary.json` y `results.jsonl`).
+
+Cada ejecución recibe una puntuación (PASS = 1, WARN = 0,5, resto = 0) y se compara con la anterior sobre los casos que tienen en común: qué casos mejoraron o empeoraron y qué cambió entre medias (system prompt, tools, modelo o los propios evals). Cada ejecución se añade también a [`evals/history.csv`](evals/history.csv). Usa `--label` para describir una ejecución:
+
+```bash
+python evals/run_evals.py --label "system prompt más estricto"
+```
 
 ### Diario de desarrollo
 
