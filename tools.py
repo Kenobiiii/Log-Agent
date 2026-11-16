@@ -417,6 +417,49 @@ def commands_by_ip(path: str, ip: str) -> dict:
     }
 
 
+def external_logins(path: str) -> dict:
+    """Successful logins from outside the company network, with or without prior failures."""
+    events = parse_log(path).events
+    internal_logins = Counter(e["user"] for e in events if e["kind"] == "accepted" and _is_internal(e["ip"]))
+
+    failures = Counter()  # failures per IP so far, in log order
+    pairs = {}
+    for e in events:
+        if e["kind"] == "failed":
+            failures[e["ip"]] += 1
+            continue
+        if _is_internal(e["ip"]):
+            continue
+        key = (e["ip"], e["user"])
+        if key not in pairs:
+            pairs[key] = {
+                "ip": e["ip"],
+                "user": e["user"],
+                "logins": 0,
+                "methods": set(),
+                "first_login": e["ts"],
+                "last_login": e["ts"],
+                "failures_before_first_login": failures[e["ip"]],
+                "user_logins_from_internal_ips": internal_logins[e["user"]],
+            }
+        p = pairs[key]
+        p["logins"] += 1
+        p["methods"].add(e["method"])
+        p["last_login"] = e["ts"]
+
+    results = sorted(pairs.values(), key=lambda p: p["first_login"])
+    for p in results:
+        p["methods"] = sorted(p["methods"])
+        p["first_login"] = p["first_login"].isoformat()
+        p["last_login"] = p["last_login"].isoformat()
+    return {
+        "external_logins": sum(p["logins"] for p in results),
+        "ip_user_pairs": len(results),
+        "logins": results[:MAX_ITEMS],
+        "truncated": len(results) > MAX_ITEMS,
+    }
+
+
 NEW_USER_RE = re.compile(r"new user: name=(?P<user>[^,\s]+)")
 
 
@@ -487,6 +530,7 @@ TOOL_FUNCTIONS = {
     "success_after_failures": success_after_failures,
     "commands_by_ip": commands_by_ip,
     "user_activity": user_activity,
+    "external_logins": external_logins,
 }
 
 _IP_PARAMS = {
@@ -607,6 +651,21 @@ TOOLS = [
                 },
                 "required": ["user"],
             },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "external_logins",
+            "description": (
+                "Every successful login from an IP outside the company network, grouped by "
+                "IP and user: number of logins, auth methods, first/last login, failures from "
+                "that IP before the first login, and how many times the same user logged in "
+                "from internal IPs. Finds compromises with NO failed attempts (stolen SSH keys "
+                "or passwords) that success_after_failures misses; an account that normally "
+                "logs in from inside and suddenly appears from outside is a strong signal."
+            ),
+            "parameters": {"type": "object", "properties": {}},
         },
     },
 ]

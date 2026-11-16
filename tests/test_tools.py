@@ -8,6 +8,7 @@ import pytest
 import tools
 from tools import (
     TOOL_FUNCTIONS,
+    external_logins,
     TOOLS,
     commands_by_ip,
     log_summary,
@@ -155,7 +156,7 @@ def test_sample_attacker_commands(sample_log):
 
 def test_sample_backdoor_account(sample_log):
     svc = user_activity(sample_log, "svc-update")
-    assert svc["account_created"] == "2026-11-11T02:06:08"
+    assert svc["account_created"].endswith("-11-11T02:06:08")  # syslog has no year
     assert [x["ip"] for x in svc["login_ips"]] == ["203.0.113.77"]
 
 
@@ -199,3 +200,38 @@ def test_tools_work_with_ipv6(write_log):
     assert top["subnets_in_top"] == [{"subnet": "2001:db8::/64", "ips": 2, "failures": 6}]
     assert users_by_ip(path, "2001:db8::17")["users"][0]["failures"] == 5
     assert log_summary(path)["failed_attempts"] == 7
+
+
+# --- external_logins (dev log 020) ------------------------------------------------
+
+def test_external_logins_mini(mini_log):
+    result = external_logins(mini_log)
+    # bob logs in from 10.0.0.5 (internal) and is not listed.
+    assert result["external_logins"] == 1
+    login = result["logins"][0]
+    assert (login["ip"], login["user"], login["failures_before_first_login"]) == ("1.2.3.4", "alice", 3)
+
+
+def test_external_logins_finds_login_without_failures(write_log):
+    # A service account that always connects from inside, then from outside with no
+    # failed attempt at all: the stolen-key pattern success_after_failures can't see.
+    path = write_log(
+        "Dec  1 08:00:00 srv sshd[1]: Accepted publickey for ci from 192.168.1.50 port 1 ssh2: ED25519 SHA256:a\n"
+        "Dec  1 10:00:00 srv sshd[2]: Accepted publickey for ci from 192.168.1.50 port 2 ssh2: ED25519 SHA256:a\n"
+        "Dec  2 03:12:00 srv sshd[3]: Accepted publickey for ci from 198.51.100.77 port 3 ssh2: ED25519 SHA256:a\n"
+        "Dec  2 03:40:00 srv sshd[4]: Accepted publickey for ci from 198.51.100.77 port 4 ssh2: ED25519 SHA256:a\n")
+    assert success_after_failures(path, min_failures=1)["count"] == 0
+    logins = external_logins(path)["logins"]
+    assert len(logins) == 1
+    login = logins[0]
+    # syslog has no year, so compare timestamps without it
+    assert (login["first_login"][5:], login["last_login"][5:]) == ("12-02T03:12:00", "12-02T03:40:00")
+    assert {k: v for k, v in login.items() if k not in ("first_login", "last_login")} == {
+        "ip": "198.51.100.77", "user": "ci", "logins": 2, "methods": ["publickey"],
+        "failures_before_first_login": 0, "user_logins_from_internal_ips": 2,
+    }
+
+
+def test_sample_external_logins(sample_log):
+    pairs = {(p["ip"], p["user"]) for p in external_logins(sample_log)["logins"]}
+    assert pairs == {("91.240.118.52", "mlopez"), ("203.0.113.77", "backup"), ("203.0.113.77", "svc-update")}
