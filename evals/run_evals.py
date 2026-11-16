@@ -93,6 +93,7 @@ class Case:
 
 LS, TF, UB = "log_summary", "top_failed_ips", "users_by_ip"
 SL, SAF, CMD = "successful_logins_by_ip", "success_after_failures", "commands_by_ip"
+UA = "user_activity"
 
 NO = ["no ", "no.", "no,", "no!", "no:", "no*", "no—", "no –", "never", "nunca", "none", "ninguna", "ninguno",
       "did not", "didn't", "not "]
@@ -193,9 +194,9 @@ CASES = [
     Case("UB-11", UB, "Did the attacker at 45.142.212.100 ever try the 'backup' account? How many times?", [[UB]], 1,
          numbers=[39]),
     Case("UB-12", UB, "Find the IP that got into mlopez's account after failing, and tell me how many other "
-         "employees it tried before that.", [[SAF, TF, SL]], 1,
+         "employees it tried before that.", [[SAF, TF, SL, UA]], 1,
          contains=["91.240.118.52"], any_of=[["59", "60", "42", "41"]]),
-    Case("UB-13", UB, "Which IP tried the 'deploy' account the most?", [[TF], [UB]], 3,
+    Case("UB-13", UB, "Which IP tried the 'deploy' account the most?", [[UB, UA]], 1,
          contains=["45.142.212.100"], numbers=[28]),
     Case("UB-14", UB, "For each of the top 3 attacking IPs, how many different usernames did they try and were any "
          "of them real accounts?", [[TF], [UB]], 4,
@@ -249,7 +250,7 @@ CASES = [
          contains=["10.99.0.15", "psanchez"]),
     Case("SAF-07", SAF, "HR reports that employee mlopez got a strange 'new login' alert on Nov 10. Investigate "
          "whether the account was compromised, from where, and how the attacker found the password.",
-         [[SAF, SL]], 2, contains=["91.240.118.52"]),
+         [[SAF, SL, UA]], 2, contains=["91.240.118.52"]),
     Case("SAF-08", SAF, "The 'backup' service account behaved strangely on Nov 11. Find out whether someone broke "
          "into it, from which IP and after how many failed attempts.", [[SAF, SL]], 1,
          contains=["203.0.113.77"], numbers=[16]),
@@ -272,7 +273,7 @@ CASES = [
     Case("CMD-01", CMD, "What did 203.0.113.77 do after logging in?", [[CMD]], 1,
          contains=["shadow", "svc-update", "wget"]),
     Case("CMD-02", CMD, "Did the attacker who got into mlopez's account manage to escalate privileges?",
-         [[SAF, SL], [CMD]], 2, any_of=[DENIED]),
+         [[SAF, SL, UA], [CMD]], 2, any_of=[DENIED]),
     Case("CMD-03", CMD, "Full incident response: find any account compromised from an external IP, determine what "
          "the attacker did after logging in (privilege use, new accounts, persistence) and list concrete "
          "cleanup steps.", [[SAF], [CMD]], 5, contains=["203.0.113.77", "svc-update", "crontab"]),
@@ -292,12 +293,43 @@ CASES = [
          contains=["shadow"]),
     Case("CMD-12", CMD, "¿Se ejecutó algún comando con sudo desde la IP 91.240.118.52? ¿Tuvo éxito?", [[CMD]], 1,
          any_of=[DENIED]),
-    Case("CMD-13", CMD, "What did the svc-update account do, and is it a legitimate account?", [[SAF, SL], [CMD]], 3,
+    Case("CMD-13", CMD, "What did the svc-update account do, and is it a legitimate account?", [[SAF, SL, UA], [CMD]], 2,
          contains=["wget", "203.0.113.77"]),
     Case("CMD-14", CMD, "Show me jgarcia's sudo activity from 10.20.2.16.", [[CMD]], 1,
          contains=["apt update", "nginx"]),
     Case("CMD-15", CMD, "Determine whether the intruder established persistence on the server. Provide evidence "
          "with timestamps.", [[CMD]], 3, contains=["crontab", "svc-update"]),
+
+    # --- user_activity -------------------------------------------------------
+    Case("UA-01", UA, "HR reports that mlopez got a 'new login from an unusual location' alert. From which IPs has "
+         "mlopez logged in, and is any of them outside our network?", [[UA]], 1, contains=["91.240.118.52"]),
+    Case("UA-02", UA, "When was the svc-update account created, and from where has it logged in?", [[UA]], 1,
+         contains=["02:06", "203.0.113.77"]),
+    Case("UA-03", UA, "Has the deploy service account ever logged in from outside the company network?", [[UA]], 1,
+         contains=["10.20.0.30"], any_of=[NO]),
+    Case("UA-04", UA, "Does an account called 'oracle' exist on this server? How many times did attackers try it?",
+         [[UA]], 1, numbers=[71], any_of=[["not exist", "doesn't exist", "does not exist", "no existe", "nonexistent",
+                                           "non-existent", "invalid", "inexistente"]]),
+    Case("UA-05", UA, "¿Desde qué IPs se conecta normalmente jgarcia y con qué método?", [[UA]], 1,
+         contains=["10.20.2.16", "10.99.0.121"]),
+    Case("UA-06", UA, "How many failed attempts did the backup account receive, and from which IPs?", [[UA]], 1,
+         contains=["45.142.212.100", "203.0.113.77"], numbers=[49, 39]),
+    Case("UA-07", UA, "psanchez says they were locked out on Nov 11. How many failed attempts did their account have, "
+         "and from where?", [[UA]], 1, contains=["10.99.0.15", "91.240.118.52"], numbers=[11]),
+    Case("UA-08", UA, "How many times did the monitor account log in, and was it always from the same machine?",
+         [[UA]], 1, contains=["10.20.0.40"], numbers=[72]),
+    Case("UA-09", UA, "Did sysadmin ever log in with a password, or only with SSH keys? From where?", [[UA]], 1,
+         contains=["publickey", "10.20.0.5"]),
+    Case("UA-10", UA, "Was the mlopez account able to run anything as root?", [[UA, CMD]], 2, any_of=[DENIED]),
+    Case("UA-11", UA, "Look up the user 'nobody': has it been used on this server?", [[UA]], 1,
+         any_of=[NOT_FOUND + NO], expect_tool_error=True),
+    Case("UA-12", UA, "Which IP attacked the root account the most, and how many failed attempts did root get in total?",
+         [[UA]], 1, contains=["185.220.101.47"], numbers=[1850, 2155]),
+    Case("UA-13", UA, "jrey had failed logins. How many came from inside the network and how many from outside, "
+         "and from which IPs?", [[UA]], 1, contains=["10.20.8.64", "91.240.118.52"], numbers=[3]),
+    Case("UA-14", UA, "¿Qué usuario se conecta desde la IP 10.20.0.5 y con qué frecuencia lo hace?", [[UB, SL, UA]], 1, contains=["sysadmin"]),
+    Case("UA-15", UA, "Investigate the employee account jrey: is there any sign that it was compromised?", [[UA]], 1,
+         contains=["10.20.8.64", "91.240.118.52"]),
 ]
 
 

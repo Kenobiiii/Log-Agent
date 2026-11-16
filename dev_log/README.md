@@ -21,6 +21,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [011](011-review-optimal-calls.md) | 2026-11-16 | Revisión de `optimal_calls`: 4 casos demasiado estrictos |
 | [012](012-log-summary-description.md) | 2026-11-16 | Descripción de `log_summary`: nombre del ranking y cuándo usarla (LS-05) |
 | [013](013-remove-language-rule.md) | 2026-11-16 | Quitar la regla de idioma: la propia regla causaba las respuestas en español (81,1 % → 97 %) |
+| [014](014-user-activity-tool.md) | 2026-11-16 | Nueva tool `user_activity`: buscar por usuario en lugar de por IP |
 
 ## Plantilla
 
