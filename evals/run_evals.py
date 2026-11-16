@@ -315,10 +315,50 @@ def _number_pattern(n: int) -> re.Pattern:
     return re.compile(rf"(?<![\d.,:\-]){body}(?!\d)(?![.,]\d)")
 
 
+# Frequent function words per language. The language of a text is the one whose
+# words appear most often. Enough to tell apart the languages seen in practice.
+STOPWORDS = {
+    "en": {"the", "and", "of", "to", "is", "was", "in", "from", "with", "that", "this", "it", "for", "are",
+           "were", "did", "has", "have", "which", "not", "no", "on", "by", "any", "all", "after", "before"},
+    "es": {"el", "la", "los", "las", "de", "del", "y", "que", "en", "con", "por", "para", "es", "fue",
+           "una", "un", "se", "su", "sus", "al", "lo", "como", "desde", "tras", "antes", "hay", "pero"},
+    "nl": {"de", "het", "een", "en", "van", "is", "niet", "geen", "met", "voor", "op", "zijn", "dat", "die",
+           "heeft", "nooit", "deze", "ook", "nee", "wel", "naar"},
+    "de": {"der", "die", "das", "und", "ist", "nicht", "kein", "keine", "mit", "von", "den", "dem", "ein",
+           "eine", "wurde", "auf", "für", "sich", "auch"},
+    "fr": {"le", "la", "les", "et", "est", "des", "une", "un", "du", "dans", "pour", "pas", "aucun", "avec",
+           "sur", "qui", "que", "été"},
+    "pt": {"o", "os", "as", "e", "é", "do", "da", "dos", "das", "não", "nenhum", "com", "uma", "em", "foi"},
+    "it": {"il", "lo", "gli", "e", "è", "di", "che", "non", "nessun", "con", "una", "per", "sono", "della"},
+}
+NON_LATIN_SCRIPT = re.compile(r"[Ѐ-ӿ؀-ۿ฀-๿぀-ヿ一-鿿가-힯]")
+VIETNAMESE = re.compile(r"[ạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹđơư]", re.IGNORECASE)
+_CODE = re.compile(r"`[^`]*`|```.*?```", re.DOTALL)
+_WORD = re.compile(r"[^\W\d_]+")
+
+
+def detect_language(text: str) -> str:
+    """Rough language guess: 'en', 'es', 'nl', ..., 'vi', 'non-latin' or 'unknown'."""
+    text = _CODE.sub(" ", text)  # IPs, usernames and commands are not language
+    if NON_LATIN_SCRIPT.search(text):
+        return "non-latin"
+    if len(VIETNAMESE.findall(text)) >= 3:
+        return "vi"
+    words = Counter(w.lower() for w in _WORD.findall(text))
+    scores = {lang: sum(words[w] for w in stop) for lang, stop in STOPWORDS.items()}
+    best = max(scores, key=scores.get)
+    return best if scores[best] >= 3 else "unknown"
+
+
 def check_answer(case: Case, answer: str) -> list[str]:
     """Return a list of failed checks (empty if all passed)."""
     text = answer.lower()
     failed = []
+    # Cases are written in English or Spanish; short prompts may not be detected.
+    expected_lang = "es" if detect_language(case.prompt) == "es" else "en"
+    answer_lang = detect_language(answer)
+    if answer_lang not in (expected_lang, "unknown"):
+        failed.append(f"wrong language: answered in {answer_lang}, question is in {expected_lang}")
     for s in case.contains:
         if s.lower() not in text:
             failed.append(f"missing text: {s!r}")

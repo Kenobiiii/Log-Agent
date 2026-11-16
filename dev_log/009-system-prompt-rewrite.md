@@ -51,6 +51,8 @@ Dos ejecuciones completas (90 casos) con cada prompt. Mismo código, mismas tool
 | Segundos por caso | 4,9 | 3,3 | −33 % |
 | Respuestas en otro idioma | 7 / 8 | **1 / 0** | −94 % |
 
+> **Corrección ([010](010-language-check.md)):** las cifras de idioma de esta tabla son incorrectas. Se contaron buscando a mano palabras de unos pocos idiomas, y se pasaron por alto las respuestas en español a preguntas en inglés. Con un check de idioma completo, las respuestas en otro idioma son **68 / 180 con el prompt antiguo y 45 / 180 con el nuevo**. La puntuación real, contando ese fallo, es **52,0 % → 72,0 %**.
+
 **Hallazgo importante: los cambios de idioma estaban ocultos.** Con el prompt antiguo, **15 de 180 respuestas** estaban en otro idioma, pero solo 2 dieron FAIL. Las demás pasaban porque las IPs y las cifras se escriben igual en cualquier idioma. Se detectaron al buscarlos a mano en las respuestas, no gracias a los evals.
 
 **Regresión investigada: LS-05.** Ahora falla de vez en cuando: 2 de 7 ejecuciones (1 en cada ejecución completa, 0 en 5 repeticiones). Pregunta por los 5 usernames más atacados, que es justo el campo `most_targeted_users` de `log_summary`. Con el prompt antiguo lo obtenía por casualidad, porque siempre llamaba primero a `log_summary`. Ahora a veces no relaciona la pregunta con ese campo y suma a mano los datos de varias IPs, con resultados erróneos.
