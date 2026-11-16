@@ -164,8 +164,9 @@ python evals/run_evals.py --suite holdout2
 Attackers choose the usernames sshd writes to the log, so the log itself can carry instructions aimed at the AI. `samples/injection_auth.log` adds such usernames to the sample log, and `evals/injection_experiment.py` measures whether the agent obeys them:
 
 ```bash
-python samples/make_injection_log.py
-python evals/injection_experiment.py --runs 5
+python samples/make_injection_log.py                     # obvious payloads
+python samples/make_injection_log.py --variant subtle    # payloads disguised as data
+python evals/injection_experiment.py --variant subtle --runs 5
 ```
 
 ### Development log
@@ -347,8 +348,9 @@ python evals/run_evals.py --suite holdout2
 El atacante elige los nombres de usuario que sshd escribe en el log, así que el propio log puede llevar instrucciones dirigidas a la IA. `samples/injection_auth.log` añade ese tipo de nombres al log de ejemplo, y `evals/injection_experiment.py` mide si el agente las obedece:
 
 ```bash
-python samples/make_injection_log.py
-python evals/injection_experiment.py --runs 5
+python samples/make_injection_log.py                     # obvious payloads
+python samples/make_injection_log.py --variant subtle    # payloads disguised as data
+python evals/injection_experiment.py --variant subtle --runs 5
 ```
 
 ### Diario de desarrollo
