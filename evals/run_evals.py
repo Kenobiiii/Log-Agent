@@ -10,7 +10,7 @@ Usage (from the project root):
     python evals/run_evals.py --case CMD-03 SAF-07
     python evals/run_evals.py --per-tool 2 --workers 6
 
-    python evals/run_evals.py --no-diagnose        # skip the LLM diagnosis
+    python evals/run_evals.py --diagnose           # also run the LLM root-cause diagnosis
     python evals/run_evals.py --label "stricter system prompt"
     python evals/run_evals.py --suite holdout      # unseen log and cases: measure only
 
@@ -28,7 +28,7 @@ Comparison: each run is compared with the latest earlier run that shares cases
 
 Non-passing cases get two kinds of feedback:
     hints       deterministic rules that point to the likely culprit
-    diagnosis   an LLM reviews prompt, tools, trace and answer and returns the
+    diagnosis   (with --diagnose) an LLM reviews prompt, tools, trace and answer and returns the
                 root cause, evidence, fix and where to apply it
 """
 
@@ -1107,8 +1107,8 @@ def main() -> None:
     parser.add_argument("--case", nargs="+", help="only these case ids, e.g. CMD-03 SAF-07")
     parser.add_argument("--per-tool", type=int, help="max cases per tool")
     parser.add_argument("--workers", type=int, default=4, help="cases run in parallel")
-    parser.add_argument("--no-diagnose", action="store_true",
-                        help="skip the LLM root-cause analysis of non-passing cases")
+    parser.add_argument("--diagnose", action="store_true",
+                        help="run the LLM root-cause analysis of non-passing cases (extra API calls)")
     parser.add_argument("--diagnose-model", default=DEFAULT_MODEL, help="model used for diagnosis")
     parser.add_argument("--lang", default="Spanish", help="language of the diagnosis text")
     parser.add_argument("--label", help="short description of this run, e.g. 'stricter system prompt'")
@@ -1116,7 +1116,7 @@ def main() -> None:
                                            "default: latest earlier run sharing cases")
     parser.add_argument("--no-compare", action="store_true", help="skip the comparison")
     args = parser.parse_args()
-    diagnose_with = None if args.no_diagnose else args.diagnose_model
+    diagnose_with = args.diagnose_model if args.diagnose else None
 
     suite_cases = load_suite(args.suite)
     if args.log is None:
