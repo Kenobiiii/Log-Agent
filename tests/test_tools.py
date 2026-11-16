@@ -107,6 +107,14 @@ def test_user_activity_unknown_user(mini_log):
     assert "not found" in user_activity(mini_log, "nobody")["error"]
 
 
+def test_top_failed_ips_reports_how_many_it_returns(sample_log, mini_log):
+    # The model miscounts long lists (TF-12), so the tool states the count.
+    for path, n in ((sample_log, 10), (sample_log, 30), (mini_log, 10)):
+        result = top_failed_ips(path, n=n)
+        assert result["ips_returned"] == len(result["top"])
+    assert top_failed_ips(sample_log, n=10)["ips_returned"] == 10
+
+
 def test_top_failed_ips_clamps_n(mini_log):
     assert len(top_failed_ips(mini_log, n=1000)["top"]) <= tools.MAX_ITEMS
     assert "error" in top_failed_ips(mini_log, n="many")
