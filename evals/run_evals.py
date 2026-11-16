@@ -287,13 +287,13 @@ CASES = [
          "cleanup steps.", [[SAF, EL], [CMD]], 5, contains=["203.0.113.77", "svc-update", "crontab"]),
     Case("CMD-04", CMD, "Was any new user created on the system during these 3 days? By which account and from "
          "which IP?", [[CMD, PA]], 3, contains=["svc-update", "backup", "203.0.113.77"]),
-    Case("CMD-05", CMD, "What sudo commands did sysadmin run from 10.20.0.5?", [[CMD]], 1, contains=["apt upgrade"]),
+    Case("CMD-05", CMD, "What sudo commands did sysadmin run from 10.20.0.5?", [[CMD, PA]], 1, contains=["apt upgrade"]),
     Case("CMD-06", CMD, "List the privileged commands the deploy account ran from 10.20.0.30.", [[CMD]], 1,
          contains=["app.service"]),
     Case("CMD-07", CMD, "Which privileged commands were run from 10.20.0.15?", [[CMD]], 1, contains=["backup.sh"]),
     Case("CMD-08", CMD, "Were any commands executed from 185.220.101.47?", [[CMD, SL, TF]], 1, any_of=[NO]),
     Case("CMD-09", CMD, "Did anyone download and execute a script on this server? Who, when and from where?",
-         [[CMD]], 3, contains=["wget", "x.sh", "svc-update", "203.0.113.77"]),
+         [[CMD, PA]], 3, contains=["wget", "x.sh", "svc-update", "203.0.113.77"]),
     Case("CMD-10", CMD, "Some commands from the backup account session on Nov 11 are flagged as ambiguous. Explain "
          "why, and which ones definitely came from the attacker.", [[CMD]], 2,
          contains=["shadow", "10.20.0.15"]),
@@ -303,7 +303,7 @@ CASES = [
          any_of=[DENIED]),
     Case("CMD-13", CMD, "What did the svc-update account do, and is it a legitimate account?", [[SAF, SL, UA], [CMD]], 2,
          contains=["wget", "203.0.113.77"]),
-    Case("CMD-14", CMD, "Show me jgarcia's sudo activity from 10.20.2.16.", [[CMD]], 1,
+    Case("CMD-14", CMD, "Show me jgarcia's sudo activity from 10.20.2.16.", [[CMD, PA]], 1,
          contains=["apt update", "nginx"]),
     Case("CMD-15", CMD, "Determine whether the intruder established persistence on the server. Provide evidence "
          "with timestamps.", [[CMD]], 3, contains=["crontab", "svc-update"]),
@@ -419,6 +419,17 @@ CASES = [
          contains=["backup"]),
     Case("PA-15", PA, "Did the attacker who logged in as mlopez manage to run anything as root?", [[PA, CMD, UA]], 1,
          any_of=[DENIED]),
+
+    # --- breakdown by authentication method (dev log 027) -----------------------
+    Case("LS-16", LS, "How many successful logins used public key authentication, and how many used a password?",
+         [[LS]], 1, numbers=[248, 254]),
+    Case("LS-17", LS, "Were there any failed public-key authentication attempts in this log?", [[LS, TF]], 1,
+         any_of=[NO]),
+    Case("LS-18", LS, "¿Qué métodos de autenticación se usaron en los logins correctos y cuántos de cada uno?",
+         [[LS]], 1, numbers=[254, 248]),
+    Case("TF-16", TF, "Which IPs had the most failed password attempts?", [[TF]], 1,
+         contains=["185.220.101.47"], numbers=[1850]),
+    Case("TF-17", TF, "Did any IP fail with public key authentication? Which ones?", [[TF, LS]], 1, any_of=[NO]),
 ]
 
 
