@@ -112,22 +112,34 @@ def test_check_answer_excludes():
     assert any("unexpected text" in f for f in check_answer(case, "Yes, from 194.26.29.0/24 and no more."))
 
 
-def test_holdout_cases_are_well_formed():
-    from run_evals import load_suite
+@pytest.mark.parametrize("suite", ["holdout", "holdout2"])
+def test_holdout_cases_are_well_formed(suite):
+    from run_evals import SUITES, load_suite
     from tools import TOOL_FUNCTIONS
-    holdout = load_suite("holdout")
-    assert len(holdout) == 25
-    assert len({c.id for c in holdout}) == 25
-    assert not {c.id for c in holdout} & {c.id for c in CASES}
-    assert {t for c in holdout for g in c.expect for t in g} <= set(TOOL_FUNCTIONS)
+    cases = load_suite(suite)
+    others = {c.id for name in SUITES if name != suite for c in load_suite(name)} | {c.id for c in CASES}
+    assert len(cases) == 25
+    assert len({c.id for c in cases}) == 25
+    assert not {c.id for c in cases} & others
+    assert {t for c in cases for g in c.expect for t in g} <= set(TOOL_FUNCTIONS)
     # Every case checks something.
-    assert all(c.contains or c.numbers or c.any_of for c in holdout)
+    assert all(c.contains or c.numbers or c.any_of or c.judge for c in cases)
 
 
-def test_holdout_spanish_cases_are_detected_as_spanish():
+@pytest.mark.parametrize("suite", ["holdout", "holdout2"])
+def test_holdout_spanish_cases_are_detected_as_spanish(suite):
     from run_evals import load_suite
-    spanish = [c for c in load_suite("holdout") if "¿" in c.prompt]
+    spanish = [c for c in load_suite(suite) if "¿" in c.prompt]
     assert spanish and all(detect_language(c.prompt) == "es" for c in spanish)
+
+
+def test_holdout_suites_have_truth_with_networks():
+    import json
+    from run_evals import SUITES
+    from tools import parse_networks
+    for module, attr, log, truth in SUITES.values():
+        assert log.exists()
+        assert parse_networks(json.loads(truth.read_text())["internal_networks"])
 
 
 def test_judge_failures_become_failed_checks():

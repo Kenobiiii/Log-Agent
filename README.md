@@ -154,9 +154,10 @@ python evals/run_evals.py --label "stricter system prompt"
 
 ```bash
 python evals/run_evals.py --suite holdout
+python evals/run_evals.py --suite holdout2
 ```
 
-It measures whether the agent generalizes. Use it only to measure, never to tune: fix what it reveals with the main suite and unit tests, then re-run it.
+`samples/holdout2_auth.log` is a third company's log, added once the first held-out set had guided several fixes. It measures whether the agent generalizes. Use it only to measure, never to tune: fix what it reveals with the main suite and unit tests, then re-run it.
 
 ### Development log
 
@@ -327,9 +328,10 @@ python evals/run_evals.py --label "system prompt más estricto"
 
 ```bash
 python evals/run_evals.py --suite holdout
+python evals/run_evals.py --suite holdout2
 ```
 
-Mide si el agente generaliza. Úsalo solo para medir, nunca para ajustar: arregla lo que revele con los evals principales y los tests unitarios, y después vuelve a ejecutarlo.
+`samples/holdout2_auth.log` es el log de una tercera empresa, añadido cuando el primer held-out ya había guiado varios arreglos. Mide si el agente generaliza. Úsalo solo para medir, nunca para ajustar: arregla lo que revele con los evals principales y los tests unitarios, y después vuelve a ejecutarlo.
 
 ### Diario de desarrollo
 

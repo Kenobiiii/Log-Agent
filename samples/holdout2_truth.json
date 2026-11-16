@@ -1,0 +1,142 @@
+{
+  "log": "samples/holdout2_auth.log",
+  "internal_networks": [
+    "10.50.0.0/16",
+    "100.64.0.0/10",
+    "fd12:3456::/64"
+  ],
+  "totals": {
+    "lines": 4348,
+    "failed_attempts": 717,
+    "successful_logins": 451,
+    "ips_with_failures": 120,
+    "keyboard_interactive_logins": 46,
+    "root_failures": 164
+  },
+  "top_failed_ips": [
+    [
+      "198.51.100.200",
+      120
+    ],
+    [
+      "185.162.90.113",
+      15
+    ],
+    [
+      "185.232.102.132",
+      15
+    ],
+    [
+      "185.152.247.49",
+      15
+    ],
+    [
+      "185.219.233.144",
+      14
+    ],
+    [
+      "185.233.132.101",
+      13
+    ],
+    [
+      "185.185.152.228",
+      13
+    ],
+    [
+      "185.222.76.202",
+      13
+    ],
+    [
+      "185.138.102.242",
+      12
+    ],
+    [
+      "185.201.59.131",
+      12
+    ]
+  ],
+  "most_frequent_login_user": [
+    "zabbix",
+    288
+  ],
+  "root_logins": [
+    {
+      "ip": "198.51.100.200",
+      "internal": false
+    },
+    {
+      "ip": "fd12:3456::10",
+      "internal": true
+    }
+  ],
+  "accounts_created": [
+    "support2"
+  ],
+  "scenarios": {
+    "root_compromise": {
+      "ip": "198.51.100.200",
+      "login": "2026-12-15T04:22:17",
+      "logout": "2026-12-15T04:53:59",
+      "failures_before": 120,
+      "users_tried": [
+        "admin",
+        "root"
+      ],
+      "backdoor_user": "support2",
+      "sudo_commands": 0
+    },
+    "distributed": {
+      "ips": 30,
+      "distinct_24s": 30,
+      "attempts": 330,
+      "users": [
+        "admin",
+        "ubuntu",
+        "oracle",
+        "postgres",
+        "test"
+      ],
+      "max_attempts_per_ip": 15
+    },
+    "service_misuse": {
+      "user": "backup-svc",
+      "usual_ip": "10.50.1.20",
+      "usual_method": "publickey",
+      "ip": "10.50.7.33",
+      "workstation_owner": "tmorel",
+      "method": "password",
+      "time": "2026-12-16T13:40:12",
+      "command": "/usr/bin/tar czf /tmp/db.tgz /var/lib/postgresql"
+    },
+    "simultaneous_sessions": {
+      "user": "ldubois",
+      "vpn_ip": "100.64.12.5",
+      "external_ip": "192.0.2.150",
+      "external_login": "2026-12-15T11:31:44",
+      "prior_failures": 0
+    },
+    "su_failures": {
+      "user": "hmeyer",
+      "count": 3,
+      "first": "2026-12-16T21:14:03"
+    },
+    "su_success": {
+      "user": "ksato",
+      "count": 4
+    }
+  },
+  "services": {
+    "backup-svc": {
+      "ip": "10.50.1.20",
+      "logins": 4
+    },
+    "deploy-bot": {
+      "ip": "10.50.1.30",
+      "logins": 15
+    },
+    "zabbix": {
+      "ip": "10.50.1.40",
+      "logins": 288
+    }
+  }
+}
