@@ -71,7 +71,7 @@ cp .env.example .env   # then add your DeepSeek API key
 
 ### Sample log
 
-`samples/auth.log` is a synthetic log (~15,700 lines) covering 3 days on a server of a mid-size company with about 120 employees. All IPs, users and events are fictitious. Along with normal activity (office/VPN logins, service accounts, cron, internet scanners), it contains several attack scenarios for the agent to find:
+`samples/auth.log` is a synthetic log (~16,000 lines) covering 3 days on a server of a mid-size company with about 120 employees. All IPs, users and events are fictitious. Along with normal activity (office/VPN logins, service accounts, cron, internet scanners), it contains several attack scenarios for the agent to find:
 
 - A brute-force attack against `root` and a username dictionary attack.
 - A password spray over real employee names that ends in a successful login.
@@ -191,7 +191,7 @@ cp .env.example .env   # y añade tu API key de DeepSeek
 
 ### Log de ejemplo
 
-`samples/auth.log` es un log sintético (~15.700 líneas) de 3 días en un servidor de una empresa mediana de unos 120 empleados. Todas las IPs, usuarios y eventos son ficticios. Además de la actividad normal (logins desde oficina y VPN, cuentas de servicio, cron, escáneres de internet), contiene varios escenarios de ataque para que el agente los encuentre:
+`samples/auth.log` es un log sintético (~16.000 líneas) de 3 días en un servidor de una empresa mediana de unos 120 empleados. Todas las IPs, usuarios y eventos son ficticios. Además de la actividad normal (logins desde oficina y VPN, cuentas de servicio, cron, escáneres de internet), contiene varios escenarios de ataque para que el agente los encuentre:
 
 - Un ataque de fuerza bruta contra `root` y otro de diccionario de nombres de usuario.
 - Un *password spray* sobre nombres reales de empleados que termina en un login exitoso.
