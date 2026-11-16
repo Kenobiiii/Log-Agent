@@ -103,3 +103,27 @@ def test_spanish_cases_are_detected_as_spanish():
     spanish = [c for c in CASES if "¿" in c.prompt or c.prompt.startswith(("Un ", "Estoy", "Resume", "Hay", "Necesito", "La IP"))]
     assert spanish
     assert all(detect_language(c.prompt) == "es" for c in spanish)
+
+
+def test_check_answer_excludes():
+    case = _case(any_of=[["no "]], excludes=["194.26.29"])
+    assert check_answer(case, "There was no coordinated subnet attack in this log.") == []
+    assert any("unexpected text" in f for f in check_answer(case, "Yes, from 194.26.29.0/24 and no more."))
+
+
+def test_holdout_cases_are_well_formed():
+    from run_evals import load_suite
+    from tools import TOOL_FUNCTIONS
+    holdout = load_suite("holdout")
+    assert len(holdout) == 25
+    assert len({c.id for c in holdout}) == 25
+    assert not {c.id for c in holdout} & {c.id for c in CASES}
+    assert {t for c in holdout for g in c.expect for t in g} <= set(TOOL_FUNCTIONS)
+    # Every case checks something.
+    assert all(c.contains or c.numbers or c.any_of for c in holdout)
+
+
+def test_holdout_spanish_cases_are_detected_as_spanish():
+    from run_evals import load_suite
+    spanish = [c for c in load_suite("holdout") if "¿" in c.prompt]
+    assert spanish and all(detect_language(c.prompt) == "es" for c in spanish)
