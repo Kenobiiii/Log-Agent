@@ -185,6 +185,7 @@ def top_failed_ips(path: str, n: int = 5) -> dict:
     top = failures.most_common(n)
     return {
         "ips_with_failures": len(failures),
+        "ips_returned": len(top),
         "top": [
             {
                 "ip": ip,
@@ -477,8 +478,8 @@ TOOLS = [
         "function": {
             "name": "top_failed_ips",
             "description": (
-                "Ranking of IPs by number of failed login attempts. For each IP "
-                "returns failures, distinct usernames tried, successful logins "
+                "Ranking of IPs by number of failed login attempts; ips_returned says "
+                "how many are in the list. For each IP returns failures, distinct usernames tried, successful logins "
                 "and whether it belongs to the internal network. Also groups the "
                 "returned IPs by /24 subnet (subnets_in_top) to reveal distributed "
                 "attacks; use those counts instead of counting IPs yourself."
