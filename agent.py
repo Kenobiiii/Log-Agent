@@ -1,8 +1,10 @@
 """SSH log analysis agent powered by DeepSeek function calling."""
 
 import argparse
+import json
 import os
 import sys
+import time
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -11,6 +13,7 @@ from tools import TOOLS, run_tool
 
 DEFAULT_MODEL = "deepseek-chat"
 MAX_STEPS = 10
+TRACE_RESULT_CHARS = 3000
 
 SYSTEM_PROMPT = """You are a security analyst reviewing an SSH authentication log.
 
@@ -40,16 +43,35 @@ class LogAgent:
         self.log_path = log_path
         self.verbose = verbose
         self.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        self.last_trace = None
 
     def ask(self, question: str) -> str:
-        self.messages.append({"role": "user", "content": question})
+        """Run the agent loop for one question.
 
-        for _ in range(MAX_STEPS):
+        After each call, `self.last_trace` holds the steps, tool calls and
+        token usage of that run (used for logging and evaluation).
+        """
+        self.messages.append({"role": "user", "content": question})
+        trace = {
+            "steps": 0,
+            "tool_calls": [],
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "hit_max_steps": False,
+        }
+        self.last_trace = trace
+
+        for step in range(1, MAX_STEPS + 1):
+            trace["steps"] = step
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=self.messages,
                 tools=TOOLS,
             )
+            if response.usage:
+                trace["prompt_tokens"] += response.usage.prompt_tokens
+                trace["completion_tokens"] += response.usage.completion_tokens
+
             message = response.choices[0].message
             self.messages.append(message.model_dump(exclude_none=True))
 
@@ -57,7 +79,17 @@ class LogAgent:
                 return message.content or ""
 
             for call in message.tool_calls:
+                started = time.perf_counter()
                 result = run_tool(call.function.name, call.function.arguments, self.log_path)
+                trace["tool_calls"].append({
+                    "step": step,
+                    "name": call.function.name,
+                    "arguments": call.function.arguments,
+                    "result_chars": len(result),
+                    "result": result[:TRACE_RESULT_CHARS],
+                    "error": _extract_error(result),
+                    "seconds": round(time.perf_counter() - started, 4),
+                })
                 self._log_tool_call(call.function.name, call.function.arguments, result)
                 self.messages.append({
                     "role": "tool",
@@ -65,6 +97,7 @@ class LogAgent:
                     "content": result,
                 })
 
+        trace["hit_max_steps"] = True
         return "Stopped: too many tool calls without a final answer."
 
     def _log_tool_call(self, name: str, arguments: str, result: str) -> None:
@@ -72,6 +105,14 @@ class LogAgent:
             return
         preview = result if len(result) <= 300 else result[:300] + "..."
         print(f"\033[2m-> {name}({arguments or ''})\n   {preview}\033[0m", file=sys.stderr)
+
+
+def _extract_error(result: str) -> str | None:
+    try:
+        data = json.loads(result)
+    except json.JSONDecodeError:
+        return "non-JSON tool result"
+    return data.get("error") if isinstance(data, dict) else None
 
 
 def main() -> None:
