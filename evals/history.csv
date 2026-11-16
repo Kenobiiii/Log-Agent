@@ -14,3 +14,5 @@ run,label,git_commit,git_dirty,model,prompt_hash,tools_hash,evals_hash,cases,sco
 20261116-192033,baseline,f716f0b,False,deepseek-chat,1a343105,668a3cf7,f17bfdfc,105,96.2,98,6,1,0,0,1.57,4121,3.01
 20261116-192656,top_failed_ips: ips_returned,30cbe1e,True,deepseek-chat,1a343105,ed026b85,f17bfdfc,15,100.0,15,0,0,0,0,1.07,3588,2.67
 20261116-193744,[holdout] first run,2f509af,False,deepseek-chat,1a343105,ed026b85,8523b880,25,42.0,10,1,14,0,0,2.72,5488,3.69
+20261116-195111,external_logins tool (run 1),f8b793f,True,deepseek-chat,e0acb747,9dbd382c,54c6c6c3,120,97.9,115,5,0,0,0,1.48,4374,3.01
+20261116-195200,external_logins tool (run 2),f8b793f,True,deepseek-chat,e0acb747,9dbd382c,54c6c6c3,120,95.8,112,6,2,0,0,1.51,4483,3.0
