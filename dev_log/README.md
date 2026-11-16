@@ -18,6 +18,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [008](008-fix-no-check.md) | 2026-11-16 | Fix: el check de "no" rechazaba respuestas correctas (TF-03) |
 | [009](009-system-prompt-rewrite.md) | 2026-11-16 | Reescritura del system prompt: 79,7 % → 94,7 %, la mitad de llamadas |
 | [010](010-language-check.md) | 2026-11-16 | Los evals comprueban el idioma: 1 de cada 4 respuestas estaba en otro idioma |
+| [011](011-review-optimal-calls.md) | 2026-11-16 | Revisión de `optimal_calls`: 4 casos demasiado estrictos |
 
 ## Plantilla
 

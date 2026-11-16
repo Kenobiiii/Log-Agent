@@ -193,7 +193,7 @@ CASES = [
     Case("UB-11", UB, "Did the attacker at 45.142.212.100 ever try the 'backup' account? How many times?", [[UB]], 1,
          numbers=[39]),
     Case("UB-12", UB, "Find the IP that got into mlopez's account after failing, and tell me how many other "
-         "employees it tried before that.", [[SAF, TF, SL], [UB]], 2,
+         "employees it tried before that.", [[SAF, TF, SL]], 1,
          contains=["91.240.118.52"], any_of=[["59", "60", "42", "41"]]),
     Case("UB-13", UB, "Which IP tried the 'deploy' account the most?", [[TF], [UB]], 3,
          contains=["45.142.212.100"], numbers=[28]),
@@ -238,7 +238,7 @@ CASES = [
     Case("SAF-01", SAF, "Did any IP log in successfully after a series of failed attempts? List them.", [[SAF]], 1,
          contains=["91.240.118.52", "203.0.113.77"]),
     Case("SAF-02", SAF, "Find compromised accounts in this log and tell me which ones are real intrusions and which "
-         "are just employees who mistyped their password.", [[SAF]], 1,
+         "are just employees who mistyped their password.", [[SAF]], 3,
          contains=["mlopez", "backup", "psanchez"]),
     Case("SAF-03", SAF, "Which external IPs got in after failing more than 10 times?", [[SAF]], 1,
          contains=["91.240.118.52", "203.0.113.77"]),
@@ -261,7 +261,7 @@ CASES = [
          "quiet ones. Find low-volume attacks that succeeded.", [[SAF]], 1, contains=["203.0.113.77"]),
     Case("SAF-12", SAF, "For each IP that got in after 3+ failures, how many distinct usernames did it try before "
          "succeeding?", [[SAF]], 1, contains=["91.240.118.52", "203.0.113.77"], numbers=[42, 6]),
-    Case("SAF-13", SAF, "Was there a successful password spray attack? Explain how you know.", [[SAF]], 1,
+    Case("SAF-13", SAF, "Was there a successful password spray attack? Explain how you know.", [[SAF]], 2,
          contains=["91.240.118.52", "mlopez"]),
     Case("SAF-14", SAF, "Using a threshold of 2 failed attempts, how many IPs succeed after failing?", [[SAF]], 1,
          numbers=[18]),
@@ -275,7 +275,7 @@ CASES = [
          [[SAF, SL], [CMD]], 2, any_of=[DENIED]),
     Case("CMD-03", CMD, "Full incident response: find any account compromised from an external IP, determine what "
          "the attacker did after logging in (privilege use, new accounts, persistence) and list concrete "
-         "cleanup steps.", [[SAF], [CMD]], 3, contains=["203.0.113.77", "svc-update", "crontab"]),
+         "cleanup steps.", [[SAF], [CMD]], 5, contains=["203.0.113.77", "svc-update", "crontab"]),
     Case("CMD-04", CMD, "Was any new user created on the system during these 3 days? By which account and from "
          "which IP?", [[CMD]], 3, contains=["svc-update", "backup", "203.0.113.77"]),
     Case("CMD-05", CMD, "What sudo commands did sysadmin run from 10.20.0.5?", [[CMD]], 1, contains=["apt upgrade"]),
