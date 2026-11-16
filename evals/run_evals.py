@@ -12,7 +12,7 @@ Usage (from the project root):
 
     python evals/run_evals.py --diagnose           # also run the LLM root-cause diagnosis
     python evals/run_evals.py --label "stricter system prompt"
-    python evals/run_evals.py --suite holdout      # unseen log and cases: measure only
+    python evals/run_evals.py --suite holdout2     # unseen log and cases: measure only
 
 Each run writes to evals/results/<timestamp>/:
     results.jsonl   one line per case: answer, checks, full tool trace, tokens,
@@ -55,10 +55,16 @@ from dotenv import load_dotenv  # noqa: E402
 from openai import OpenAI  # noqa: E402
 
 from agent import DEFAULT_MODEL, MAX_STEPS, SYSTEM_PROMPT, LogAgent  # noqa: E402
-from tools import TOOLS  # noqa: E402
+from tools import TOOLS, set_internal_networks  # noqa: E402
 
 DEFAULT_LOG = ROOT / "samples" / "auth.log"
-HOLDOUT_LOG = ROOT / "samples" / "holdout_auth.log"
+# Held-out suites: cases module, log, and ground truth (which also gives the company networks).
+SUITES = {
+    "holdout": ("holdout_cases", "HOLDOUT_CASES", ROOT / "samples" / "holdout_auth.log",
+                ROOT / "samples" / "holdout_truth.json"),
+    "holdout2": ("holdout2_cases", "HOLDOUT2_CASES", ROOT / "samples" / "holdout2_auth.log",
+                 ROOT / "samples" / "holdout2_truth.json"),
+}
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 HISTORY_FILE = Path(__file__).resolve().parent / "history.csv"
 
@@ -434,9 +440,9 @@ CASES = [
 
 
 def load_suite(name: str) -> list[Case]:
-    if name == "holdout":
-        from holdout_cases import HOLDOUT_CASES
-        return [Case(**c) for c in HOLDOUT_CASES]
+    if name in SUITES:
+        module, attr = SUITES[name][:2]
+        return [Case(**c) for c in getattr(__import__(module), attr)]
     return CASES
 
 
@@ -1141,8 +1147,8 @@ def main() -> None:
     load_dotenv(ROOT / ".env")
 
     parser = argparse.ArgumentParser(description="Run the evaluation suite for the log agent.")
-    parser.add_argument("--suite", choices=["main", "holdout"], default="main",
-                        help="main: 105 cases on samples/auth.log; holdout: unseen log and cases (measure only)")
+    parser.add_argument("--suite", choices=["main", *SUITES], default="main",
+                        help="main: cases on samples/auth.log; holdout, holdout2: unseen logs and cases (measure only)")
     parser.add_argument("--log", default=None, help="log file to evaluate against (default depends on --suite)")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--tool", nargs="+", help="only cases for these tools")
@@ -1162,7 +1168,10 @@ def main() -> None:
 
     suite_cases = load_suite(args.suite)
     if args.log is None:
-        args.log = str(HOLDOUT_LOG if args.suite == "holdout" else DEFAULT_LOG)
+        args.log = str(SUITES[args.suite][2] if args.suite in SUITES else DEFAULT_LOG)
+    if args.suite in SUITES:
+        # Like an administrator would with --internal-networks: use the company's networks.
+        set_internal_networks(json.loads(SUITES[args.suite][3].read_text())["internal_networks"])
     cases = select_cases(args, suite_cases)
     if not cases:
         parser.error("no cases selected")
@@ -1192,7 +1201,7 @@ def main() -> None:
 
     meta = {
         "run": out_dir.name,
-        "label": (f"[holdout] {args.label}" if args.suite == "holdout" else args.label) or "",
+        "label": (f"[{args.suite}] {args.label}" if args.suite in SUITES else args.label) or "",
         "suite": args.suite,
         "started": started.strftime("%Y-%m-%d %H:%M:%S"),
         "model": args.model,
