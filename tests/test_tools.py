@@ -235,3 +235,17 @@ def test_external_logins_finds_login_without_failures(write_log):
 def test_sample_external_logins(sample_log):
     pairs = {(p["ip"], p["user"]) for p in external_logins(sample_log)["logins"]}
     assert pairs == {("91.240.118.52", "mlopez"), ("203.0.113.77", "backup"), ("203.0.113.77", "svc-update")}
+
+
+def test_user_activity_dates_failures(write_log):
+    # Failures on two different days from the same IP must not be merged (H-13, dev log 021).
+    path = write_log(
+        "Dec  1 10:48:40 srv sshd[1]: Failed password for ann from 172.16.5.16 port 1 ssh2\n"
+        "Dec  3 09:03:02 srv sshd[2]: Failed password for ann from 172.16.5.16 port 2 ssh2\n"
+        "Dec  3 09:05:04 srv sshd[3]: Failed password for ann from 172.16.5.16 port 3 ssh2\n"
+        "Dec  3 09:41:00 srv sshd[4]: Accepted password for ann from 172.16.5.16 port 4 ssh2\n")
+    ua = user_activity(path, "ann")
+    by_ip = ua["failures_by_ip"][0]
+    assert by_ip["failures"] == 3
+    assert (by_ip["first_failure"][5:], by_ip["last_failure"][5:]) == ("12-01T10:48:40", "12-03T09:05:04")
+    assert [(d["date"][5:], d["failures"]) for d in ua["failures_by_day"]] == [("12-01", 1), ("12-03", 2)]

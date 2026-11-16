@@ -28,6 +28,8 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [018](018-parser-formats.md) | 2026-11-16 | El parser entiende IPv6, `message repeated`, `publickey` y `keyboard-interactive` |
 | [019](019-internal-networks.md) | 2026-11-16 | Redes internas: rangos privados por defecto y configurables |
 | [020](020-external-logins.md) | 2026-11-16 | Nueva tool `external_logins`: detecta la clave robada que no tenía fallos previos |
+| [021](021-user-activity-dates.md) | 2026-11-16 | `user_activity` fecha los fallos: por IP (primero y último) y por día |
+| [022](022-holdout-remeasure.md) | 2026-11-16 | Segunda medición del held-out: 42 % → 84 %; quedan 3 FAIL, uno de razonamiento |
 
 ## Plantilla
 
