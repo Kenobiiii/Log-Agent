@@ -143,7 +143,7 @@ def log_summary(path: str) -> dict:
         "account_changes": len(log.accounts),
         "first_event": events[0]["ts"].isoformat(),
         "last_event": events[-1]["ts"].isoformat(),
-        "most_targeted_users": [
+        "top_usernames_by_failures": [
             {"user": u, "failures": n} for u, n in targeted_users.most_common(5)
         ],
     }
@@ -165,6 +165,7 @@ def top_failed_ips(path: str, n: int = 5) -> dict:
         else:
             successes[e["ip"]] += 1
 
+    top = failures.most_common(n)
     return {
         "ips_with_failures": len(failures),
         "top": [
@@ -175,9 +176,23 @@ def top_failed_ips(path: str, n: int = 5) -> dict:
                 "successful_logins": successes[ip],
                 "internal": _is_internal(ip),
             }
-            for ip, count in failures.most_common(n)
+            for ip, count in top
         ],
+        "subnets_in_top": _group_by_subnet(top),
     }
+
+
+def _group_by_subnet(ip_counts: list[tuple[str, int]]) -> list[dict]:
+    """/24 subnets with 2+ IPs among the given (ip, failures) pairs."""
+    groups = defaultdict(lambda: {"ips": 0, "failures": 0})
+    for ip, count in ip_counts:
+        subnet = str(ipaddress.ip_network(f"{ip}/24", strict=False))
+        groups[subnet]["ips"] += 1
+        groups[subnet]["failures"] += count
+    return sorted(
+        ({"subnet": net, **g} for net, g in groups.items() if g["ips"] >= 2),
+        key=lambda x: (-x["ips"], -x["failures"]),
+    )
 
 
 def users_by_ip(path: str, ip: str) -> dict:
@@ -263,7 +278,7 @@ def success_after_failures(path: str, min_failures: int = 3) -> dict:
                 "ip": ip,
                 "internal": _is_internal(ip),
                 "failures_before_success": failures[ip],
-                "users_tried": len(tried_users[ip]),
+                "users_tried_before_success": len(tried_users[ip]),
                 "first_login": e["ts"].isoformat(),
                 "user": e["user"],
                 "method": e["method"],
@@ -370,10 +385,11 @@ TOOLS = [
         "function": {
             "name": "log_summary",
             "description": (
-                "General overview of the SSH log: line count, failed attempts, "
+                "Overall figures of the SSH log: line count, failed attempts, "
                 "successful logins, unique IPs and users, sudo commands, account "
-                "changes, time range and most targeted users. Call this first to "
-                "get the big picture."
+                "changes, time range, and the top 5 usernames by failed attempts "
+                "(top_usernames_by_failures). Use it for questions about totals "
+                "or about which usernames/accounts are attacked the most."
             ),
             "parameters": {"type": "object", "properties": {}},
         },
@@ -385,7 +401,9 @@ TOOLS = [
             "description": (
                 "Ranking of IPs by number of failed login attempts. For each IP "
                 "returns failures, distinct usernames tried, successful logins "
-                "and whether it belongs to the internal network."
+                "and whether it belongs to the internal network. Also groups the "
+                "returned IPs by /24 subnet (subnets_in_top) to reveal distributed "
+                "attacks; use those counts instead of counting IPs yourself."
             ),
             "parameters": {
                 "type": "object",
@@ -424,7 +442,9 @@ TOOLS = [
             "description": (
                 "Find IPs that had several failed attempts and THEN logged in "
                 "successfully, a sign of a compromised account. Catches attacks "
-                "that don't show up in the top failed IPs due to low volume."
+                "that don't show up in the top failed IPs due to low volume. "
+                "Failures and usernames are counted only up to the first "
+                "successful login of each IP."
             ),
             "parameters": {
                 "type": "object",
