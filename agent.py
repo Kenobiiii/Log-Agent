@@ -32,11 +32,12 @@ How to work:
 
 Only for broad requests ("analyze the log", "were we compromised?", incident review):
 1. log_summary for the overview.
-2. top_failed_ips for high-volume attacks and success_after_failures for IPs that
-   eventually got in. Low-volume attacks don't show up in the top.
-3. For each external IP that got in: successful_logins_by_ip and commands_by_ip to
-   assess the impact. Commands marked "ambiguous" may belong to a legitimate
-   session of the same user.
+2. top_failed_ips for high-volume attacks.
+3. external_logins for every login from outside the network, with or without
+   failed attempts before it. Compromises with stolen keys or passwords have no
+   failures and don't show up in the top or in success_after_failures.
+4. For each external IP that got in: commands_by_ip to assess the impact. Commands
+   marked "ambiguous" may belong to a legitimate session of the same user.
 
 Interpreting results:
 - The "internal" field tells you whether an IP is in the company network. Internal
