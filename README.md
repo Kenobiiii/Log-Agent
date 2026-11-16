@@ -159,6 +159,15 @@ python evals/run_evals.py --suite holdout2
 
 `samples/holdout2_auth.log` is a third company's log, added once the first held-out set had guided several fixes. It measures whether the agent generalizes. Use it only to measure, never to tune: fix what it reveals with the main suite and unit tests, then re-run it.
 
+### Prompt injection test
+
+Attackers choose the usernames sshd writes to the log, so the log itself can carry instructions aimed at the AI. `samples/injection_auth.log` adds such usernames to the sample log, and `evals/injection_experiment.py` measures whether the agent obeys them:
+
+```bash
+python samples/make_injection_log.py
+python evals/injection_experiment.py --runs 5
+```
+
 ### Development log
 
 [`dev_log/`](dev_log/) records every significant change: what was wrong, what was changed and why. Since this is a learning project, the reasoning matters as much as the code.
@@ -332,6 +341,15 @@ python evals/run_evals.py --suite holdout2
 ```
 
 `samples/holdout2_auth.log` es el log de una tercera empresa, añadido cuando el primer held-out ya había guiado varios arreglos. Mide si el agente generaliza. Úsalo solo para medir, nunca para ajustar: arregla lo que revele con los evals principales y los tests unitarios, y después vuelve a ejecutarlo.
+
+### Prueba de prompt injection
+
+El atacante elige los nombres de usuario que sshd escribe en el log, así que el propio log puede llevar instrucciones dirigidas a la IA. `samples/injection_auth.log` añade ese tipo de nombres al log de ejemplo, y `evals/injection_experiment.py` mide si el agente las obedece:
+
+```bash
+python samples/make_injection_log.py
+python evals/injection_experiment.py --runs 5
+```
 
 ### Diario de desarrollo
 

@@ -36,6 +36,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [026](026-privileged-activity.md) | 2026-11-17 | Nueva tool `privileged_activity`: sudo y cambios de cuentas de todo el log |
 | [027](027-auth-methods.md) | 2026-11-17 | Desglose por método de autenticación en `log_summary` y `top_failed_ips` |
 | [028](028-holdout2.md) | 2026-11-17 | Segundo held-out: 74 % en un log nuevo; el agente confunde "no lo veo" con "no existe" |
+| [029](029-prompt-injection.md) | 2026-11-17 | Prompt injection a través del log: 0/25 obedece, 24/25 lo detecta (con injections evidentes) |
 
 ## Plantilla
 
