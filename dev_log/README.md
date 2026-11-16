@@ -31,6 +31,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [021](021-user-activity-dates.md) | 2026-11-16 | `user_activity` fecha los fallos: por IP (primero y último) y por día |
 | [022](022-holdout-remeasure.md) | 2026-11-16 | Segunda medición del held-out: 42 % → 84 %; quedan 3 FAIL, uno de razonamiento |
 | [023](023-llm-judge.md) | 2026-11-16 | Un LLM como juez para lo que los checks de texto no pueden comprobar |
+| [024](024-unverified-negatives-rule-rejected.md) | 2026-11-16 | Regla para no negar lo no comprobado: probada y descartada (no mejora, a veces se rinde sin buscar) |
 
 ## Plantilla
 
