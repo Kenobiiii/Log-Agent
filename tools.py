@@ -106,11 +106,28 @@ def _is_internal(ip: str) -> bool:
     return any(addr in net for net in INTERNAL_NETWORKS)
 
 
+USERNAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9._-]{0,63}$")
+
+
 def _validate_ip(ip) -> str | None:
     try:
         ipaddress.ip_address(str(ip).strip())
     except ValueError:
+        if USERNAME_RE.match(str(ip).strip()):
+            return f"'{ip}' is not an IP address. To look up a username, use user_activity."
         return f"'{ip}' is not a valid IP address"
+    return None
+
+
+def _validate_user(user) -> str | None:
+    user = str(user).strip()
+    try:
+        ipaddress.ip_address(user)
+        return f"'{user}' is an IP address, not a username. To look up an IP, use users_by_ip."
+    except ValueError:
+        pass
+    if not USERNAME_RE.match(user):
+        return f"'{user}' is not a valid username"
     return None
 
 
@@ -360,6 +377,66 @@ def commands_by_ip(path: str, ip: str) -> dict:
     }
 
 
+NEW_USER_RE = re.compile(r"new user: name=(?P<user>[^,\s]+)")
+
+
+def user_activity(path: str, user: str) -> dict:
+    if err := _validate_user(user):
+        return {"error": err}
+    user = user.strip()
+
+    log = parse_log(path)
+    events = [e for e in log.events if e["user"] == user]
+    sudo = [s for s in log.sudo if s["user"] == user]
+    created = next((a for a in log.accounts
+                    if (m := NEW_USER_RE.search(a["message"])) and m["user"] == user), None)
+    if not events and not sudo and not created:
+        return {"error": f"User {user} not found in log"}
+
+    failed = [e for e in events if e["kind"] == "failed"]
+    accepted = [e for e in events if e["kind"] == "accepted"]
+
+    failures_by_ip = Counter(e["ip"] for e in failed)
+    login_ips = defaultdict(lambda: {"logins": 0, "methods": set(), "first": None, "last": None})
+    for e in accepted:
+        s = login_ips[e["ip"]]
+        s["logins"] += 1
+        s["methods"].add(e["method"])
+        s["first"] = s["first"] or e["ts"]
+        s["last"] = e["ts"]
+
+    timestamps = [e["ts"] for e in events] + [s["ts"] for s in sudo]
+    return {
+        "user": user,
+        # sshd logs "invalid user" for accounts that don't exist
+        "exists": bool(accepted or sudo or created or any(not e["invalid_user"] for e in failed)),
+        "account_created": created["ts"].isoformat() if created else None,
+        "first_seen": min(timestamps).isoformat() if timestamps else None,
+        "last_seen": max(timestamps).isoformat() if timestamps else None,
+        "failed_attempts": len(failed),
+        "failures_by_ip": [
+            {"ip": ip, "failures": n, "internal": _is_internal(ip)}
+            for ip, n in failures_by_ip.most_common(MAX_ITEMS)
+        ],
+        "successful_logins": len(accepted),
+        "login_ips": [
+            {
+                "ip": ip,
+                "internal": _is_internal(ip),
+                "logins": s["logins"],
+                "methods": sorted(s["methods"]),
+                "first_login": s["first"].isoformat(),
+                "last_login": s["last"].isoformat(),
+            }
+            for ip, s in sorted(login_ips.items(), key=lambda kv: -kv[1]["logins"])[:MAX_ITEMS]
+        ],
+        "logins_from_external_ips": sum(s["logins"] for ip, s in login_ips.items() if not _is_internal(ip)),
+        "sudo_commands": len(sudo),
+        "sudo_denied": sum(1 for s in sudo if s["error"]),
+        "truncated": len(failures_by_ip) > MAX_ITEMS or len(login_ips) > MAX_ITEMS,
+    }
+
+
 # --- Registry ----------------------------------------------------------------
 
 TOOL_FUNCTIONS = {
@@ -369,6 +446,7 @@ TOOL_FUNCTIONS = {
     "successful_logins_by_ip": successful_logins_by_ip,
     "success_after_failures": success_after_failures,
     "commands_by_ip": commands_by_ip,
+    "user_activity": user_activity,
 }
 
 _IP_PARAMS = {
@@ -468,6 +546,27 @@ TOOLS = [
                 "that successfully logged in to assess the impact of an intrusion."
             ),
             "parameters": _IP_PARAMS,
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "user_activity",
+            "description": (
+                "Everything about one username: whether the account exists, when it "
+                "was created (if during the log), failed attempts per IP, the IPs it "
+                "logged in from (internal or external, method, first/last login) and "
+                "how many sudo commands it ran or had denied. Use it for questions "
+                "that start from a username instead of an IP. For the commands "
+                "themselves, call commands_by_ip on the IPs it logged in from."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user": {"type": "string", "description": "Username, e.g. mlopez"}
+                },
+                "required": ["user"],
+            },
         },
     },
 ]
