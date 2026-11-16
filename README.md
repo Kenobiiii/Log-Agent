@@ -16,8 +16,8 @@ The model never reads the raw log. Python tools parse it and compute exact figur
 
 | Tool | Description |
 |---|---|
-| `log_summary` | Overview: line count, failed/successful logins, unique IPs and users, sudo commands, time range, top 5 usernames by failed attempts |
-| `top_failed_ips` | Ranking of IPs by failed login attempts |
+| `log_summary` | Overview: line count, failed/successful logins (also by auth method), unique IPs and users, sudo commands, time range, top 5 usernames by failed attempts |
+| `top_failed_ips` | Ranking of IPs by failed login attempts, optionally for one auth method only |
 | `users_by_ip` | Usernames tried from an IP, and whether they exist on the system |
 | `successful_logins_by_ip` | Successful logins from an IP and how many failures preceded each one |
 | `success_after_failures` | IPs that failed several times and then got in (possible compromised accounts) |
@@ -35,7 +35,7 @@ log-agent/
 ├── agent.py          # Agent loop, system prompt and CLI
 ├── tools.py          # Log parser, analysis tools and their JSON schemas
 ├── evals/
-│   └── run_evals.py  # 145 test cases, path analysis and LLM diagnosis
+│   └── run_evals.py  # 150 test cases, path analysis and LLM diagnosis
 ├── tests/            # Unit tests for the parser, tools and eval checks (pytest)
 ├── dev_log/          # One entry per significant change: problem, fix, reasoning
 ├── samples/
@@ -132,7 +132,7 @@ Run them after any change to `tools.py` or the eval checks. Evals measure the ag
 
 ### Evaluations
 
-`evals/run_evals.py` runs 145 realistic analyst tasks (15 per tool, plus 10 honesty cases graded by an LLM judge) against the sample log and checks the answers against known ground truth. It also analyzes the path the agent took: which tools it used, repeated calls, errors, loops and wasted steps.
+`evals/run_evals.py` runs 150 realistic analyst tasks (15 or more per tool, plus 10 honesty cases graded by an LLM judge) against the sample log and checks the answers against known ground truth. It also analyzes the path the agent took: which tools it used, repeated calls, errors, loops and wasted steps.
 
 ```bash
 python evals/run_evals.py                    # all cases
@@ -189,8 +189,8 @@ El modelo nunca lee el log en bruto. Las herramientas en Python lo parsean y cal
 
 | Herramienta | Descripción |
 |---|---|
-| `log_summary` | Visión general: líneas, logins fallidos y exitosos, IPs y usuarios únicos, comandos sudo, rango de fechas, los 5 usuarios con más intentos fallidos |
-| `top_failed_ips` | Ranking de IPs por intentos de login fallidos |
+| `log_summary` | Visión general: líneas, logins fallidos y exitosos (también por método de autenticación), IPs y usuarios únicos, comandos sudo, rango de fechas, los 5 usuarios con más intentos fallidos |
+| `top_failed_ips` | Ranking de IPs por intentos de login fallidos, opcionalmente de un solo método de autenticación |
 | `users_by_ip` | Usuarios probados desde una IP y si existen en el sistema |
 | `successful_logins_by_ip` | Logins exitosos desde una IP y cuántos fallos hubo antes de cada uno |
 | `success_after_failures` | IPs que fallaron varias veces y después consiguieron entrar (posibles cuentas comprometidas) |
@@ -208,7 +208,7 @@ log-agent/
 ├── agent.py          # Bucle del agente, system prompt y CLI
 ├── tools.py          # Parser del log, herramientas de análisis y sus esquemas JSON
 ├── evals/
-│   └── run_evals.py  # 145 casos de prueba, análisis del camino y diagnóstico con LLM
+│   └── run_evals.py  # 150 casos de prueba, análisis del camino y diagnóstico con LLM
 ├── tests/            # Tests unitarios del parser, las tools y los checks de los evals (pytest)
 ├── dev_log/          # Una entrada por cambio importante: problema, arreglo, razonamiento
 ├── samples/
@@ -305,7 +305,7 @@ Ejecútalos después de cualquier cambio en `tools.py` o en los checks de los ev
 
 ### Evaluaciones
 
-`evals/run_evals.py` ejecuta 145 tareas realistas de analista (15 por herramienta, más 10 de honestidad evaluadas por un LLM juez) sobre el log de ejemplo y comprueba las respuestas contra datos conocidos. También analiza el camino que siguió el agente: qué herramientas usó, llamadas repetidas, errores, bucles y pasos innecesarios.
+`evals/run_evals.py` ejecuta 150 tareas realistas de analista (15 o más por herramienta, más 10 de honestidad evaluadas por un LLM juez) sobre el log de ejemplo y comprueba las respuestas contra datos conocidos. También analiza el camino que siguió el agente: qué herramientas usó, llamadas repetidas, errores, bucles y pasos innecesarios.
 
 ```bash
 python evals/run_evals.py                    # todos los casos
