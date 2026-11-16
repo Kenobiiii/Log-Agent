@@ -480,6 +480,11 @@ def user_activity(path: str, user: str) -> dict:
     accepted = [e for e in events if e["kind"] == "accepted"]
 
     failures_by_ip = Counter(e["ip"] for e in failed)
+    failure_span = {}  # ip -> (first, last)
+    for e in failed:
+        first, _ = failure_span.get(e["ip"], (e["ts"], e["ts"]))
+        failure_span[e["ip"]] = (first, e["ts"])
+    failures_by_day = Counter(e["ts"].date().isoformat() for e in failed)
     login_ips = defaultdict(lambda: {"logins": 0, "methods": set(), "first": None, "last": None})
     for e in accepted:
         s = login_ips[e["ip"]]
@@ -498,9 +503,16 @@ def user_activity(path: str, user: str) -> dict:
         "last_seen": max(timestamps).isoformat() if timestamps else None,
         "failed_attempts": len(failed),
         "failures_by_ip": [
-            {"ip": ip, "failures": n, "internal": _is_internal(ip)}
+            {
+                "ip": ip,
+                "failures": n,
+                "internal": _is_internal(ip),
+                "first_failure": failure_span[ip][0].isoformat(),
+                "last_failure": failure_span[ip][1].isoformat(),
+            }
             for ip, n in failures_by_ip.most_common(MAX_ITEMS)
         ],
+        "failures_by_day": [{"date": day, "failures": n} for day, n in sorted(failures_by_day.items())],
         "successful_logins": len(accepted),
         "login_ips": [
             {
@@ -638,7 +650,8 @@ TOOLS = [
             "name": "user_activity",
             "description": (
                 "Everything about one username: whether the account exists, when it "
-                "was created (if during the log), failed attempts per IP, the IPs it "
+                "was created (if during the log), failed attempts per IP (with first and "
+                "last failure) and per day, the IPs it "
                 "logged in from (internal or external, method, first/last login) and "
                 "how many sudo commands it ran or had denied. Use it for questions "
                 "that start from a username instead of an IP. For the commands "
