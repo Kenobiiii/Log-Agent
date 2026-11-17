@@ -203,6 +203,27 @@ def log_summary(path: str) -> dict:
         "top_usernames_by_failures": [
             {"user": u, "failures": n} for u, n in targeted_users.most_common(5)
         ],
+        "security_signals": _security_signals(path, log),
+    }
+
+
+def _security_signals(path: str, log: ParsedLog) -> dict:
+    """Possible compromises, so that any summary sees them without extra calls."""
+    external = external_logins(path)
+    return {
+        "logins_from_external_ips": external["external_logins"],
+        "external_login_accounts": [
+            {"user": p["user"], "ip": p["ip"], "first_login": p["first_login"],
+             "failures_before_first_login": p["failures_before_first_login"]}
+            for p in external["logins"][:10]
+        ],
+        "denied_sudo_commands": sum(1 for c in log.sudo if c["error"]),
+        "accounts_created": [
+            m["user"] for a in log.accounts if (m := NEW_USER_RE.search(a["message"]))
+        ],
+        "note": "A login from an external IP after many failures, or an account created during "
+                "the log, usually means a compromise. external_login_accounts already lists them; "
+                "use commands_by_ip only if you need what an IP did after logging in.",
     }
 
 
@@ -649,8 +670,10 @@ TOOLS = [
                 "successful logins (both also broken down by auth method: password, "
                 "publickey, keyboard-interactive), unique IPs and users, sudo commands, account "
                 "changes, time range, and the top 5 usernames by failed attempts "
-                "(top_usernames_by_failures). Use it for questions about totals "
-                "or about which usernames/accounts are attacked the most."
+                "(top_usernames_by_failures), plus security_signals: logins from external "
+                "IPs (which accounts, from where), denied sudo commands and accounts created. "
+                "Use it for totals, for which usernames are attacked the most, and as the "
+                "base of any summary: a summary must say whether accounts were compromised."
             ),
             "parameters": {"type": "object", "properties": {}},
         },

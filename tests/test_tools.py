@@ -337,3 +337,21 @@ def test_top_failed_ips_filters_by_method(write_log):
 def test_top_failed_ips_rejects_unknown_method(mini_log):
     assert "Unknown method" in top_failed_ips(mini_log, method="kerberos")["error"]
     assert "Unknown method" in json.loads(run_tool("top_failed_ips", '{"method": "kerberos"}', mini_log))["error"]
+
+
+# --- security_signals in log_summary (dev log 031) -----------------------------------
+
+def test_log_summary_security_signals_mini(mini_log):
+    sig = log_summary(mini_log)["security_signals"]
+    assert sig["logins_from_external_ips"] == 1
+    assert [(a["user"], a["ip"], a["failures_before_first_login"]) for a in sig["external_login_accounts"]] == [
+        ("alice", "1.2.3.4", 3)]
+    assert sig["denied_sudo_commands"] == 1
+    assert sig["accounts_created"] == ["evil"]
+
+
+def test_sample_security_signals(sample_log):
+    sig = log_summary(sample_log)["security_signals"]
+    assert {(a["user"], a["ip"]) for a in sig["external_login_accounts"]} == {
+        ("mlopez", "91.240.118.52"), ("backup", "203.0.113.77"), ("svc-update", "203.0.113.77")}
+    assert sig["accounts_created"] == ["svc-update"]
