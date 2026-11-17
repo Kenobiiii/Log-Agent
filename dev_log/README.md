@@ -38,6 +38,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [028](028-holdout2.md) | 2026-11-17 | Segundo held-out: 74 % en un log nuevo; el agente confunde "no lo veo" con "no existe" |
 | [029](029-prompt-injection.md) | 2026-11-17 | Prompt injection a través del log: 0/25 obedece, 24/25 lo detecta (con injections evidentes) |
 | [030](030-subtle-injection.md) | 2026-11-17 | Prompt injection sutil (datos falsos, JSON, otro idioma): 0/25 obedece, 19/25 lo detecta |
+| [031](031-summary-compromise.md) | 2026-11-17 | Los resúmenes siempre dicen si hubo compromisos: `security_signals` en `log_summary` |
 
 ## Plantilla
 
