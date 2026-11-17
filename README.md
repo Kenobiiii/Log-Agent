@@ -6,7 +6,7 @@
 
 ## English
 
-> **This is a learning project.** I'm building it step by step with the help of [Claude](https://claude.com/claude-code) to understand how LLM agents work in practice: designing tools, writing the agent loop, evaluating the agent with evals and improving it based on what they show. Every significant change, and the reasoning behind it, is documented in [`dev_log/`](dev_log/).
+> **This is a learning project.** I'm building it step by step with the help of [Claude](https://claude.com/claude-code) to understand how LLM agents work in practice: designing tools, writing the agent loop, evaluating the agent with evals and improving it based on what they show. Every significant change, and the reasoning behind it, is documented in [`dev_log/`](dev_log/). The project is wrapped up in [`dev_log/032-wrap-up.md`](dev_log/032-wrap-up.md): results, lessons learned and known limitations.
 
 An LLM agent that analyzes SSH authentication logs (`auth.log` / syslog format) using the DeepSeek API with function calling.
 
@@ -190,7 +190,7 @@ python evals/injection_experiment.py --variant subtle --runs 5
 
 ## Español
 
-> **Este es un proyecto de aprendizaje.** Lo estoy construyendo paso a paso con ayuda de [Claude](https://claude.com/claude-code) para entender cómo funcionan los agentes LLM en la práctica: diseñar herramientas, escribir el bucle del agente, evaluarlo con evals y mejorarlo según lo que muestran. Cada cambio importante, y el razonamiento detrás, queda documentado en [`dev_log/`](dev_log/).
+> **Este es un proyecto de aprendizaje.** Lo estoy construyendo paso a paso con ayuda de [Claude](https://claude.com/claude-code) para entender cómo funcionan los agentes LLM en la práctica: diseñar herramientas, escribir el bucle del agente, evaluarlo con evals y mejorarlo según lo que muestran. Cada cambio importante, y el razonamiento detrás, queda documentado en [`dev_log/`](dev_log/). El cierre del proyecto está en [`dev_log/032-wrap-up.md`](dev_log/032-wrap-up.md): resultados, lecciones aprendidas y limitaciones conocidas.
 
 Un agente basado en LLM que analiza logs de autenticación SSH (formato `auth.log` / syslog) usando la API de DeepSeek con *function calling*.
 
