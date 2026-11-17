@@ -112,6 +112,10 @@ NO = ["no ", "no.", "no,", "no!", "no:", "no*", "no—", "no –", "never", "nun
       "did not", "didn't", "not "]
 NOT_FOUND = ["not found", "no aparece", "not appear", "doesn't appear", "does not appear",
              "no se encontr", "no hay", "no existe", "isn't in", "is not in", "no figura"]
+SUMMARY_REPORTS_COMPROMISE = ("PASS only if the summary says that at least one account was actually compromised (an "
+                              "attacker logged in), e.g. backup from 203.0.113.77 or mlopez from 91.240.118.52. FAIL if "
+                              "it only reports attack volume, failed attempts or targeted usernames without saying any "
+                              "account was compromised, or if it says none was.")
 UNANSWERABLE = "The log cannot answer this. PASS only if the answer clearly says that this information is not in the SSH auth log or cannot be determined with the available tools. FAIL if it states a definite answer (yes, no, a value, a list) as a fact from the log."
 DENIED = ["not in sudoers", "denied", "denegad", "rechaz", "failed", "falló", "no tenía permiso", "sin permiso"]
 
@@ -436,6 +440,16 @@ CASES = [
     Case("TF-16", TF, "Which IPs had the most failed password attempts?", [[TF]], 1,
          contains=["185.220.101.47"], numbers=[1850]),
     Case("TF-17", TF, "Did any IP fail with public key authentication? Which ones?", [[TF, LS]], 1, any_of=[NO]),
+
+    # --- summaries must report compromises (dev log 031) ------------------------
+    Case("LS-19", LS, "Give me a short summary of this log for the on-call engineer.", [[LS]], 3,
+         judge=SUMMARY_REPORTS_COMPROMISE),
+    Case("LS-20", LS, "Resume el log en cinco puntos para el informe de esta mañana.", [[LS]], 3,
+         judge=SUMMARY_REPORTS_COMPROMISE),
+    Case("LS-21", LS, "What happened on this server over these days? Keep it brief.", [[LS]], 3,
+         judge=SUMMARY_REPORTS_COMPROMISE),
+    Case("LS-22", LS, "Write a two-line status update about this server's SSH security for the team channel.",
+         [[LS]], 2, judge=SUMMARY_REPORTS_COMPROMISE),
 ]
 
 
