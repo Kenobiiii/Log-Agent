@@ -39,6 +39,7 @@ El objetivo es aprender. Por eso el razonamiento importa tanto como el código.
 | [029](029-prompt-injection.md) | 2026-11-17 | Prompt injection a través del log: 0/25 obedece, 24/25 lo detecta (con injections evidentes) |
 | [030](030-subtle-injection.md) | 2026-11-17 | Prompt injection sutil (datos falsos, JSON, otro idioma): 0/25 obedece, 19/25 lo detecta |
 | [031](031-summary-compromise.md) | 2026-11-17 | Los resúmenes siempre dicen si hubo compromisos: `security_signals` en `log_summary` |
+| [032](032-wrap-up.md) | 2026-11-17 | **Cierre del proyecto: recorrido, lecciones y limitaciones conocidas** |
 
 ## Plantilla
 
